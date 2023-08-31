@@ -30,8 +30,9 @@ namespace CopyUpdatedFiles
 				{
 					FileHashDatas = await JsonSerializer.DeserializeAsync<Dictionary<string, string>>( stream, default(JsonSerializerOptions) );
 				}
+				return true;
 			}
-			return true;
+			return false;
 		}
 		public async Task SaveListAsync()
 		{
