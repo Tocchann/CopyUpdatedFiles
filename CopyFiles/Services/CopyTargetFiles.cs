@@ -1,0 +1,70 @@
+﻿using CopyFiles.Contracts.Services;
+using CopyFiles.Models;
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Threading.Tasks.Dataflow;
+
+namespace CopyFiles.Services;
+
+public class CopyTargetFiles
+{
+	public IProgressBarService ProgressBarService { get; }
+	public CancellationToken CancellationToken { get; }
+	public List<TargetFileInformation> TargetFileInfos { get; }
+
+	public CopyTargetFiles( IProgressBarService progressBarService, CancellationToken cancellationToken, List<TargetFileInformation> targetFileInfos )
+	{
+		ProgressBarService = progressBarService;
+		CancellationToken = cancellationToken;
+		TargetFileInfos = targetFileInfos;
+		ProgressBarService.IsIndeterminate = true;
+		ProgressBarService.IsProgressBarVisible = true;
+	}
+	public async Task ExecuteAsync()
+	{
+		var blockOptions = new ExecutionDataflowBlockOptions
+		{
+			CancellationToken = CancellationToken,
+			EnsureOrdered = false,
+		};
+		var copyActionBlock = new ActionBlock<TargetFileInformation>( CopyAction, blockOptions );
+		ProgressBarService.ProgressMin = 0;
+		ProgressBarService.ProgressMax = TargetFileInfos.Count;
+		ProgressBarService.ProgressValue = 0;
+		foreach( var targetFile in TargetFileInfos )
+		{
+			await copyActionBlock.SendAsync( targetFile );
+		}
+		ProgressBarService.IsIndeterminate = false;
+		copyActionBlock.Complete();
+		await copyActionBlock.Completion;
+	}
+
+	private void CopyAction( TargetFileInformation information )
+	{
+		var progressValue = ProgressBarService.ProgressValue;
+		ProgressBarService.ProgressValue = Interlocked.Increment( ref progressValue );
+		// 無視する場合はスキップ
+		if( !information.Ignore )
+		{
+			// まだコピーされていない場合は、転送先のフォルダがないかもしれないので作成する
+			if( information.Status == TargetStatus.NotExist )
+			{
+				var dstDir = Path.GetDirectoryName( information.Destination );
+				Debug.Assert( dstDir != null ); //	フルパスでセットされているのでnullになることはない
+				Directory.CreateDirectory( dstDir );
+			}
+			// コピーする必要がある場合のみコピーすればよい(同じファイルはコピー不要)
+			if( information.Status == TargetStatus.NotExist || information.Status == TargetStatus.Different )
+			{
+				File.Copy( information.Source, information.Destination, true );
+			}
+		}
+	}
+}
