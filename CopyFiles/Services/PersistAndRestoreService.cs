@@ -29,17 +29,10 @@ public class PersistAndRestoreService : IPersistAndRestoreService
 		{
 			foreach( DictionaryEntry entry in props )
 			{
-				if( entry.Key.Equals( "TargetFolderInformations" ) && entry.Value != null )
-				{
-					var infos = JsonSerializer.Deserialize<List<TargetInformation>>( (JsonElement)entry.Value );
-					App.Current.Properties.Add( entry.Key, infos );
-				}
-				else
-				{
-					App.Current.Properties.Add( entry.Key, entry.Value );
-				}
+				App.Current.Properties.Add( entry.Key, entry.Value );
 			}
 		}
+		await Task.CompletedTask;
 	}
 	public PersistAndRestoreService( ILogger<PersistAndRestoreService> logger, IFileService fileService, IHostEnvironment env )
 	{

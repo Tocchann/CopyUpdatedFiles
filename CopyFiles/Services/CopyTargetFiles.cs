@@ -36,7 +36,8 @@ public class CopyTargetFiles
 		var copyActionBlock = new ActionBlock<TargetFileInformation>( CopyAction, blockOptions );
 		ProgressBarService.ProgressMin = 0;
 		ProgressBarService.ProgressMax = TargetFileInfos.Count;
-		ProgressBarService.ProgressValue = 0;
+		interlockedProgressValue = 0;
+		ProgressBarService.ProgressValue = interlockedProgressValue;
 		foreach( var targetFile in TargetFileInfos )
 		{
 			await copyActionBlock.SendAsync( targetFile );
@@ -48,8 +49,8 @@ public class CopyTargetFiles
 
 	private void CopyAction( TargetFileInformation information )
 	{
-		var progressValue = ProgressBarService.ProgressValue;
-		ProgressBarService.ProgressValue = Interlocked.Increment( ref progressValue );
+		// 非同期なカウントアップが安全にできるようにしておく
+		ProgressBarService.ProgressValue = Interlocked.Increment( ref interlockedProgressValue );
 		// 無視する場合はスキップ
 		if( !information.Ignore )
 		{
@@ -67,4 +68,5 @@ public class CopyTargetFiles
 			}
 		}
 	}
+	private int interlockedProgressValue;
 }

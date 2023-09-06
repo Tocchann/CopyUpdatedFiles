@@ -21,6 +21,7 @@
       <RowDefinition Height="*" />
       <RowDefinition Height="auto" />
       <RowDefinition Height="auto" />
+      <RowDefinition Height="auto" />
     </Grid.RowDefinitions>
     <ListView Grid.Row="0" Margin="0,4" ItemsSource="{Binding TargetFolderInformationCollection}" SelectedItem="{Binding SelectTargetFolderInformation}">
       <ListView.View>
@@ -48,7 +49,7 @@
     </Grid>
     <Separator Grid.Row="2" Margin="-16,4" />
     <!--<DataGrid Grid.Row="3" Margin="0,4" ItemsSource="{Binding TargetFileInformationCollection}" AutoGenerateColumns="True" />-->
-    <ListView Grid.Row="3" Margin="0,4" ItemsSource="{Binding TargetFileInformationCollection}">
+    <ListView Grid.Row="3" Margin="0,4" ItemsSource="{Binding DispTargetFileInformationCollection}">
       <ListView.View>
         <GridView>
           <GridViewColumn Header="Status" DisplayMemberBinding="{Binding Status}" />
@@ -58,10 +59,12 @@
         </GridView>
       </ListView.View>
     </ListView>
-    <ProgressBar Grid.Row="4" Height="4" Margin="0,4"
+    <CheckBox Grid.Row="4" Margin="0,4" Content="コピー対象ファイルのみ表示する" IsChecked="{Binding IsDispCopyFilesOnly}" />
+    <ProgressBar Grid.Row="5" Height="4" Margin="0,4"
                  IsIndeterminate="{Binding IsIndeterminate}" Visibility="{Binding IsProgressBarVisible, Converter={StaticResource BooleanToVisibilityConverter}}"
-                 Minimum="{Binding ProgressMin}" Maximum="{Binding ProgressMax}" Value="{Binding ProgressValue}" />
-    <Grid Grid.Row="5" Margin="0,4">
+                 Minimum="{Binding ProgressMin}" Maximum="{Binding ProgressMax}" Value="{Binding ProgressValue}"
+                 d:Visibility="Visible" />
+    <Grid Grid.Row="6" Margin="0,4">
       <Grid.ColumnDefinitions>
         <ColumnDefinition Width="auto" />
         <ColumnDefinition Width="*" />

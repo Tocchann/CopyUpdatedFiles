@@ -9,10 +9,12 @@ namespace CopyFiles.Models;
 
 public enum TargetStatus
 {
-	Unknown,
-	NotExist,
-	Different,
-	Same,
+	Unknown, // 不明
+	NotExist, // コピー先がない
+	Different, // コピー先と異なる
+	SameFullMatch, // コピー先と一致(日付も一致)
+	SameWithoutDate, // コピー先と一致(ただし日付違い。ビルドされたけど内容が変わっていない)
+	SameWithoutSize, // サイズは違うが内容は一致(実行ファイルで署名の有無が該当)
 }
 public partial class TargetFileInformation : TargetInformation
 {

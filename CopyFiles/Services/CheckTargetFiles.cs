@@ -20,11 +20,9 @@ public class CheckTargetFiles : IDisposable
 	public IProgressBarService ProgressBarService { get; }
 	public CancellationToken CancellationToken { get; }
 	public List<TargetFileInformation> TargetFileInfos { get; }
-	public IEnumerable<TargetFileInformation> PrevTargetFileInfos { get; }
 
-	public CheckTargetFiles( IEnumerable<TargetFileInformation> tergetFileInfos, IProgressBarService progressBarService, CancellationToken token )
+	public CheckTargetFiles( IProgressBarService progressBarService, CancellationToken token )
 	{
-		PrevTargetFileInfos = tergetFileInfos;
 		ProgressBarService = progressBarService;
 		CancellationToken = token;
 		hashAlgorithm = SHA256.Create();
@@ -38,8 +36,6 @@ public class CheckTargetFiles : IDisposable
 		ProgressBarService.IsProgressBarVisible = false;
 	}
 
-	private HashAlgorithm hashAlgorithm;
-
 	public async Task ExecuteAsync( IEnumerable<TargetInformation> targetFolderInformations )
 	{
 		var blockOptions = new ExecutionDataflowBlockOptions
@@ -47,17 +43,9 @@ public class CheckTargetFiles : IDisposable
 			CancellationToken = CancellationToken,
 			EnsureOrdered = false,
 		};
-		var singleActionBlockOptions = new ExecutionDataflowBlockOptions
-		{
-			CancellationToken = CancellationToken,
-			EnsureOrdered = false,
-			MaxDegreeOfParallelism = 1
-		};
-		var listupTargetFilesBlock = new TransformManyBlock<TargetInformation, TargetFileInformation>(
-			ListupTargetFiles, blockOptions );
+		var listupTargetFilesBlock = new TransformManyBlock<TargetInformation, TargetFileInformation>( ListupTargetFiles, blockOptions );
 		// 一度ローカルにリストを作ってそこに保持する(数を数える都合)
-		var joinTargetFileInfoBlock = new ActionBlock<TargetFileInformation>(
-			JoinTargetFileInfo, singleActionBlockOptions );
+		var joinTargetFileInfoBlock = new ActionBlock<TargetFileInformation>( JoinTargetFileInfo, blockOptions );
 
 		// 実際のファイルを結合して状態を確認する
 		var checkTargetFileStatusBlock = new TransformBlock<TargetFileInformation, TargetFileInformation>( CheckTargetFileStatus, blockOptions );
@@ -79,7 +67,8 @@ public class CheckTargetFiles : IDisposable
 
 		ProgressBarService.ProgressMin = 0;
 		ProgressBarService.ProgressMax = TargetFileInfos.Count;
-		ProgressBarService.ProgressValue = 0;
+		interlockedProgressValue = 0;
+		ProgressBarService.ProgressValue = interlockedProgressValue;
 		ProgressBarService.IsIndeterminate = false;
 
 		foreach( var info in TargetFileInfos )
@@ -120,37 +109,45 @@ public class CheckTargetFiles : IDisposable
 	// 並列に大量のデータを作った後に一つずつ詰め込んでもらう(順番は考慮しない)
 	private void JoinTargetFileInfo( TargetFileInformation information )
 	{
-		//	そのまま追加するだけ
-		TargetFileInfos.Add( information );
-	}
-	private Task<TargetFileInformation> CheckTargetFileStatus( TargetFileInformation information )
-	{
-		return Task.Factory.StartNew( () =>
+		lock( TargetFileInfos )
 		{
-			if( information.Ignore == false && information.Status == TargetStatus.Unknown )
+			TargetFileInfos.Add( information );
+		}
+	}
+	private TargetFileInformation CheckTargetFileStatus( TargetFileInformation information )
+	{
+		// チェックは毎回確認する
+		if( information.Ignore == false )
+		{
+			// コピー先がある場合は、実際に比較する
+			if( File.Exists( information.Destination ) )
 			{
-				// 既に存在する場合
-				if( File.Exists( information.Destination ) )
+				// 両方存在する場合のみハッシュで比較する。
+				var srcHash = GetFileHash( information.Source );
+				var dstHash = GetFileHash( information.Destination );
+				if( srcHash != dstHash )
 				{
-					// 両方存在する場合のみハッシュで比較する。
-					var srcHash = GetFileHash( information.Source );
-					var dstHash = GetFileHash( information.Destination );
-					if( srcHash != dstHash )
-					{
-						information.Status = TargetStatus.Different;
-					}
-					else
-					{
-						information.Status = TargetStatus.Same;
-					}
+					information.Status = TargetStatus.Different;
 				}
 				else
 				{
-					information.Status = TargetStatus.NotExist;
+					// 内容は一致するが日付などが異なっている場合のフラグ判定
+					var srcInfo = new FileInfo( information.Source );
+					var dstInfo = new FileInfo( information.Destination );
+					information.Status =
+						srcInfo.Length != dstInfo.Length
+							? TargetStatus.SameWithoutSize
+							: srcInfo.LastWriteTimeUtc != dstInfo.LastWriteTimeUtc
+								? TargetStatus.SameWithoutDate
+								: TargetStatus.SameFullMatch;
 				}
 			}
-			return information;
-		} );
+			else
+			{
+				information.Status = TargetStatus.NotExist;
+			}
+		}
+		return information;
 	}
 
 	private string GetFileHash( string filePath )
@@ -166,7 +163,7 @@ public class CheckTargetFiles : IDisposable
 
 	private void PushTargetFileInfo( TargetFileInformation information )
 	{
-		ProgressBarService.ProgressValue++;
+		ProgressBarService.ProgressValue = Interlocked.Increment( ref interlockedProgressValue );
 		//// ここは、単純設定するだけ(前回の情報は保持しておきたいけどどうする？)
 		//var existInfo = ProgressBarService.TargetFileInformationCollection.FirstOrDefault( info => info.Source == information.Source );
 		//if( existInfo == null )
@@ -179,4 +176,6 @@ public class CheckTargetFiles : IDisposable
 		//	existInfo.Status = information.Status;
 		//}
 	}
+	private HashAlgorithm hashAlgorithm;
+	private int interlockedProgressValue;
 }

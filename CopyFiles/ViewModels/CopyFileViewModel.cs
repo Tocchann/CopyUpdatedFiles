@@ -8,10 +8,12 @@ using Microsoft.Extensions.Logging;
 using Morrin.Extensions.Abstractions;
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -20,7 +22,7 @@ namespace CopyFiles.ViewModels;
 public partial class CopyFileViewModel : ObservableObject, IProgressBarService
 {
 	public ObservableCollection<TargetInformation> TargetFolderInformationCollection { get; }
-	public ObservableCollection<TargetFileInformation> TargetFileInformationCollection { get; }
+	public ObservableCollection<TargetFileInformation> DispTargetFileInformationCollection { get; }
 
 	[ObservableProperty]
 	TargetInformation? selectTargetFolderInformation;
@@ -40,6 +42,9 @@ public partial class CopyFileViewModel : ObservableObject, IProgressBarService
 	[ObservableProperty]
 	int progressValue;
 
+	[ObservableProperty]
+	bool isDispCopyFilesOnly;
+
 	[RelayCommand]
 	void AddFolder()
 	{
@@ -52,13 +57,7 @@ public partial class CopyFileViewModel : ObservableObject, IProgressBarService
 			if( dlg.ShowWindow() != false )
 			{
 				TargetFolderInformationCollection.Add( dlg.ViewModel.TargetFolderInformation );
-				var cols = (List<TargetInformation>?)App.Current.Properties["TargetFolderInformations"];
-				if( cols == null )
-				{
-					cols = new();
-					App.Current.Properties["TargetFolderInformations"] = cols;
-				}
-				cols.Add( dlg.ViewModel.TargetFolderInformation );
+				App.Current.Properties[nameof( TargetFolderInformationCollection )] = TargetFolderInformationCollection.ToArray();
 			}
 		}
 	}
@@ -76,15 +75,10 @@ public partial class CopyFileViewModel : ObservableObject, IProgressBarService
 			dlg.ViewModel.TargetFolderInformationCollection = TargetFolderInformationCollection;
 			if( dlg.ShowWindow() != false )
 			{
-				var cols = (List<TargetInformation>?)App.Current.Properties["TargetFolderInformations"];
-				if( cols != null )
-				{
-					var info = cols.Single( info => info.Source == SelectTargetFolderInformation.Source && info.Destination == SelectTargetFolderInformation.Destination );
-					info.Source = dlg.ViewModel.Source;
-					info.Destination = dlg.ViewModel.Destination;
-				}
 				SelectTargetFolderInformation.Source = dlg.ViewModel.Source;
 				SelectTargetFolderInformation.Destination = dlg.ViewModel.Destination;
+				// 実際は、コレクションデータも変わるのでそのまま書き込んでおけばよい
+				App.Current.Properties[nameof( TargetFolderInformationCollection )] = TargetFolderInformationCollection.ToArray();
 			}
 		}
 	}
@@ -102,12 +96,8 @@ public partial class CopyFileViewModel : ObservableObject, IProgressBarService
 			{
 				return;
 			}
-			var cols = (List<TargetInformation>?)App.Current.Properties["TargetFolderInformations"];
-			if( cols != null )
-			{
-				cols.Remove( SelectTargetFolderInformation );
-			}
 			TargetFolderInformationCollection.Remove( SelectTargetFolderInformation );
+			App.Current.Properties[nameof( TargetFolderInformationCollection )] = TargetFolderInformationCollection.ToArray();
 		}
 	}
 
@@ -115,11 +105,13 @@ public partial class CopyFileViewModel : ObservableObject, IProgressBarService
 	void CopyToClipboard()
 	{
 		m_logger.LogInformation( System.Reflection.MethodBase.GetCurrentMethod()?.Name );
+		// データ形式を決めないといけないよね…テキストで処理することは確定事項だけども…
 		m_alart.Show( "工事中...クリップボードへのコピー" );
 	}
 	bool CanExecuteTargetFileAction()
 	{
-		return TargetFileInformationCollection.Count > 0;
+		// 非表示のものは処理対象に含めない
+		return DispTargetFileInformationCollection.Count > 0;
 	}
 	[RelayCommand]
 	async Task CheckTargetFiles()
@@ -129,19 +121,13 @@ public partial class CopyFileViewModel : ObservableObject, IProgressBarService
 		// プログレスバーが出ているかどうかで判定を変える
 		if( !IsProgressBarVisible )
 		{
-			using( var checkTargetFiles = new CheckTargetFiles( TargetFileInformationCollection, this, m_tokenSrc.Token ) )
+			using( var checkTargetFiles = new CheckTargetFiles( this, m_tokenSrc.Token ) )
 			{
 				await checkTargetFiles.ExecuteAsync( TargetFolderInformationCollection );
-				// データを構築し終わったらコピーする(ここはメインスレッドでも良い)
-				TargetFileInformationCollection.Clear();
-				foreach( var fileInfo in checkTargetFiles.TargetFileInfos.OrderBy( info => info.Status ) )
-				{
-					TargetFileInformationCollection.Add( fileInfo );
-				}
+				// データを構築し終わったらコピーする(ここはメインスレッドで良い)
+				m_targetFileInformationCollection = checkTargetFiles.TargetFileInfos;
 			}
-			// 処理が終わったら、チェックリストが変わっているので、コピーとかが可能になる(はず)
-			CopyToClipboardCommand.NotifyCanExecuteChanged();
-			CopyTargetFilesCommand.NotifyCanExecuteChanged();
+			RefreshTargetFileInformationCollection();
 		}
 		else
 		{
@@ -156,24 +142,67 @@ public partial class CopyFileViewModel : ObservableObject, IProgressBarService
 		m_logger.LogInformation( System.Reflection.MethodBase.GetCurrentMethod()?.Name );
 		m_alart.Show( "工事中...追跡対象ファイルのコピー" );
 	}
+
+
+	private void RefreshTargetFileInformationCollection()
+	{
+		DispTargetFileInformationCollection.Clear();
+		// 絞り込み表示するので絞り込んでセットする
+		if( m_targetFileInformationCollection != null )
+		{
+			if( IsDispCopyFilesOnly )
+			{
+				foreach( var fileInfo in m_targetFileInformationCollection )
+				{
+					if( !fileInfo.Ignore == false )
+					{
+						if( fileInfo.Status == TargetStatus.NotExist || fileInfo.Status == TargetStatus.Different )
+						{
+							DispTargetFileInformationCollection.Add( fileInfo );
+						}
+					}
+				}
+			}
+			else
+			{
+				// 全面表示は無条件に追加
+				foreach( var fileInfo in m_targetFileInformationCollection )
+				{
+					DispTargetFileInformationCollection.Add( fileInfo );
+				}
+			}
+		}
+		CopyToClipboardCommand.NotifyCanExecuteChanged();
+		CopyTargetFilesCommand.NotifyCanExecuteChanged();
+	}
+
 	public CopyFileViewModel( ILogger<CopyFileViewModel> logger, IDispAlert alart )
 	{
 		m_logger = logger;
 		m_alart = alart;
 		TargetFolderInformationCollection = new();
-		if( App.Current.Properties.Contains( "TargetFolderInformations" ) )
+		m_progressValueLocker = new();
+		// ここで読み込むときだけ状況が異なる
+		if( App.Current.Properties.Contains( nameof( TargetFolderInformationCollection ) ) )
 		{
-			var cols = (List<TargetInformation>?)App.Current.Properties["TargetFolderInformations"];
-			if( cols != null )
+			// 読み取った時は、JsonElementになっているので変換してやる必要がある(本当は型を見て処理するほうがいいけどここでは省略)
+			var jsonElement = (JsonElement?)App.Current.Properties[nameof( TargetFolderInformationCollection )];
+			if( jsonElement != null )
 			{
-				TargetFolderInformationCollection.Clear();
-				foreach( var info in cols )
+				var folderInfos = JsonSerializer.Deserialize<TargetInformation[]>( jsonElement.Value );
+				if( folderInfos != null )
 				{
-					TargetFolderInformationCollection.Add( info );
+					foreach( var info in folderInfos )
+					{
+						TargetFolderInformationCollection.Add( info );
+					}
 				}
 			}
 		}
-		TargetFileInformationCollection = new();
+		DispTargetFileInformationCollection = new();
+		// ここは直接boolが格納されているので、そのまま変換する
+		IsDispCopyFilesOnly = ((JsonElement?)App.Current.Properties[nameof( IsDispCopyFilesOnly )])?.GetBoolean() ?? false;
+		RefreshTargetFileInformationCollection();
 		m_tokenSrc = new();
 		PropertyChanged += ( s, e ) =>
 		{
@@ -182,6 +211,10 @@ public partial class CopyFileViewModel : ObservableObject, IProgressBarService
 			case nameof( SelectTargetFolderInformation ):
 				EditFolderCommand.NotifyCanExecuteChanged();
 				RemoveFolderCommand.NotifyCanExecuteChanged();
+				break;
+			case nameof( IsDispCopyFilesOnly ):
+				App.Current.Properties[nameof( IsDispCopyFilesOnly )] = IsDispCopyFilesOnly;
+				RefreshTargetFileInformationCollection();
 				break;
 			}
 		};
@@ -192,7 +225,9 @@ public partial class CopyFileViewModel : ObservableObject, IProgressBarService
 #pragma warning restore CS8618 // null 非許容のフィールドには、コンストラクターの終了時に null 以外の値が入っていなければなりません。Null 許容として宣言することをご検討ください。
 	{
 	}
+	private List<TargetFileInformation>? m_targetFileInformationCollection;
 	private ILogger<CopyFileViewModel> m_logger;
 	private IDispAlert m_alart;
 	private CancellationTokenSource m_tokenSrc;
+	private object m_progressValueLocker;
 }
