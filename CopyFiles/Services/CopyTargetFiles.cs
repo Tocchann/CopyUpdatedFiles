@@ -40,7 +40,7 @@ public class CopyTargetFiles
 		ProgressBarService.ProgressValue = interlockedProgressValue;
 		foreach( var targetFile in TargetFileInfos )
 		{
-			await copyActionBlock.SendAsync( targetFile );
+			copyActionBlock.Post( targetFile );
 		}
 		ProgressBarService.IsIndeterminate = false;
 		copyActionBlock.Complete();

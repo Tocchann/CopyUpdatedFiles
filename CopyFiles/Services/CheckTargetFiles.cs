@@ -73,7 +73,7 @@ public class CheckTargetFiles : IDisposable
 
 		foreach( var info in TargetFileInfos )
 		{
-			await checkTargetFileStatusBlock.SendAsync( info );
+			checkTargetFileStatusBlock.Post( info );
 		}
 		checkTargetFileStatusBlock.Complete();
 		await pushTargetFileInfoBlock.Completion;
