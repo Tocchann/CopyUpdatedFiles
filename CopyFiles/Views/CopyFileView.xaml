@@ -6,7 +6,7 @@
         xmlns:local="clr-namespace:CopyFiles.Views"
         xmlns:vm="clr-namespace:CopyFiles.ViewModels"
         mc:Ignorable="d"
-        Title="CopyFile" SizeToContent="WidthAndHeight" ResizeMode="CanResizeWithGrip" MinWidth="480" MinHeight="320" MaxWidth="1920" MaxHeight="1000">
+        Title="CopyFile" SizeToContent="WidthAndHeight" ResizeMode="CanResizeWithGrip" MinWidth="480" MaxWidth="1920" MaxHeight="1000">
   <Window.Resources>
     <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
   </Window.Resources>
@@ -15,6 +15,7 @@
   </d:Window.DataContext>
   <Grid Margin="8,4">
     <Grid.RowDefinitions>
+      <RowDefinition Height="auto" />
       <RowDefinition Height="auto" />
       <RowDefinition Height="auto" />
       <RowDefinition Height="auto" />
@@ -47,9 +48,19 @@
       <Button Grid.Column="3" Content="対象フォルダの編集" Command="{Binding EditFolderCommand}" />
       <Button Grid.Column="5" Content="対象フォルダの削除" Command="{Binding RemoveFolderCommand}" />
     </Grid>
-    <Separator Grid.Row="2" Margin="-16,4" />
-    <!--<DataGrid Grid.Row="3" Margin="0,4" ItemsSource="{Binding TargetFileInformationCollection}" AutoGenerateColumns="True" />-->
-    <ListView Grid.Row="3" Margin="0,4" ItemsSource="{Binding DispTargetFileInformationCollection}">
+    <Grid Grid.Row="2" Margin="0,4">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="auto" />
+        <ColumnDefinition Width="*" />
+        <ColumnDefinition Width="4" />
+        <ColumnDefinition Width="auto" />
+      </Grid.ColumnDefinitions>
+      <Label Grid.Column="0" Content="対象ファイルリスト" />
+      <TextBox Grid.Column="1" Text="{Binding FocusFileListPath}" />
+      <Button Grid.Column="3" Content="..." Padding="2,4" Command="{Binding SelectFocusFileListPathCommand}" />
+    </Grid>
+    <Separator Grid.Row="3" Margin="-16,4" />
+    <ListView Grid.Row="4" Margin="0,4" ItemsSource="{Binding DispTargetFileInformationCollection}">
       <ListView.View>
         <GridView>
           <GridViewColumn Header="Status" DisplayMemberBinding="{Binding Status}" />
@@ -59,12 +70,12 @@
         </GridView>
       </ListView.View>
     </ListView>
-    <CheckBox Grid.Row="4" Margin="0,4" Content="コピー対象ファイルのみ表示する" IsChecked="{Binding IsDispCopyFilesOnly}" />
-    <ProgressBar Grid.Row="5" Height="4" Margin="0,4"
+    <CheckBox Grid.Row="5" Margin="0,4" Content="コピー対象ファイルのみ表示する" IsChecked="{Binding IsDispCopyFilesOnly}" />
+    <ProgressBar Grid.Row="6" Height="4" Margin="0,4"
                  IsIndeterminate="{Binding IsIndeterminate}" Visibility="{Binding IsProgressBarVisible, Converter={StaticResource BooleanToVisibilityConverter}}"
                  Minimum="{Binding ProgressMin}" Maximum="{Binding ProgressMax}" Value="{Binding ProgressValue}"
                  d:Visibility="Visible" />
-    <Grid Grid.Row="6" Margin="0,4">
+    <Grid Grid.Row="7" Margin="0,4">
       <Grid.ColumnDefinitions>
         <ColumnDefinition Width="auto" />
         <ColumnDefinition Width="*" />

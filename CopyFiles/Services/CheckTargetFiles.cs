@@ -27,6 +27,7 @@ public class CheckTargetFiles : IDisposable
 		CancellationToken = token;
 		hashAlgorithm = SHA256.Create();
 		TargetFileInfos = new();
+		m_focusFileListPath = new();
 		ProgressBarService.IsIndeterminate = true;
 		ProgressBarService.IsProgressBarVisible = true;
 	}
@@ -36,28 +37,51 @@ public class CheckTargetFiles : IDisposable
 		ProgressBarService.IsProgressBarVisible = false;
 	}
 
-	public async Task ExecuteAsync( IEnumerable<TargetInformation> targetFolderInformations )
+	public async Task ExecuteAsync( IEnumerable<TargetInformation> targetFolderInformations, string? focusFileListPath )
 	{
 		var blockOptions = new ExecutionDataflowBlockOptions
 		{
 			CancellationToken = CancellationToken,
 			EnsureOrdered = false,
 		};
+		var linkOptions = new DataflowLinkOptions
+		{
+			PropagateCompletion = true,
+		};
+
+		// 対象ファイルを絞り込みするためのパスリストをセットする
+		var readFocusFileBlock = new ActionBlock<string>(
+			async filePath =>
+			{
+				var fileList = await File.ReadAllLinesAsync( filePath );
+				foreach( var file in fileList )
+				{
+					m_focusFileListPath.Add( file );
+				}
+			}, blockOptions );
+	
+
+		// 検索対象フォルダを列挙してファイル一覧をリストアップする
 		var listupTargetFilesBlock = new TransformManyBlock<TargetInformation, TargetFileInformation>( ListupTargetFiles, blockOptions );
-		// 一度ローカルにリストを作ってそこに保持する(数を数える都合)
 		var joinTargetFileInfoBlock = new ActionBlock<TargetFileInformation>( JoinTargetFileInfo, blockOptions );
+		listupTargetFilesBlock.LinkTo( joinTargetFileInfoBlock, linkOptions );
+
 
 		// 実際のファイルを結合して状態を確認する
 		var checkTargetFileStatusBlock = new TransformBlock<TargetFileInformation, TargetFileInformation>( CheckTargetFileStatus, blockOptions );
 		var pushTargetFileInfoBlock = new ActionBlock<TargetFileInformation>( PushTargetFileInfo, blockOptions );
 
-		var linkOptions = new DataflowLinkOptions
-		{
-			PropagateCompletion = true,
-		};
-		listupTargetFilesBlock.LinkTo( joinTargetFileInfoBlock, linkOptions );
 		checkTargetFileStatusBlock.LinkTo( pushTargetFileInfoBlock, linkOptions );
 
+		// フォーカスリストの読み込み
+		if( File.Exists( focusFileListPath ) )
+		{
+			await readFocusFileBlock.SendAsync( focusFileListPath );
+		}
+		readFocusFileBlock.Complete();
+		await readFocusFileBlock.Completion;
+
+		// 対象ファイルの列挙
 		foreach( var folderInfo in targetFolderInformations )
 		{
 			listupTargetFilesBlock.Post( folderInfo );
@@ -71,6 +95,7 @@ public class CheckTargetFiles : IDisposable
 		ProgressBarService.ProgressValue = interlockedProgressValue;
 		ProgressBarService.IsIndeterminate = false;
 
+		// 実際のファイルを比較して処理の必要があるかを確認する
 		foreach( var info in TargetFileInfos )
 		{
 			checkTargetFileStatusBlock.Post( info );
@@ -81,34 +106,49 @@ public class CheckTargetFiles : IDisposable
 
 	private IEnumerable<TargetFileInformation> ListupTargetFiles( TargetInformation information )
 	{
-		// フォルダを見て、そこの一覧を返す
-		var fileInfos = new List<TargetFileInformation>();
+		var targetFileInfos = new List<TargetFileInformation>();
 		if( Directory.Exists( information.Source ) )
 		{
 			int skipLen = information.Source.Length;
 			// 末尾がディレクトリの区切り記号ではない場合は、さらに１文字スキップ
-			if( Path.DirectorySeparatorChar != information.Source[skipLen-1] )
+			if( Path.DirectorySeparatorChar != information.Source[skipLen - 1] )
 			{
 				skipLen++;
 			}
-			var srcFiles = Directory.EnumerateFiles( information.Source );
-			foreach( var srcFile in srcFiles )
-			{
-				var relFilePath = srcFile.Substring( skipLen );
-				fileInfos.Add( new TargetFileInformation
-				{
-					Source = srcFile,
-					Destination = Path.Combine( information.Destination, relFilePath ),
-					Status = TargetStatus.Unknown,
-					Ignore = false,	//	参照用ファイルパスリストをどこかから取り込んできてそれで無視するフラグを自動設定するのが一番いいんだよね…
-				} );
-			}
+			ListupTargetFiles( targetFileInfos, information, skipLen, information.Source);
 		}
-		return fileInfos;
+		return targetFileInfos;
+	}
+	private void ListupTargetFiles( List<TargetFileInformation> targetFileInfos, TargetInformation information, int skipLen, string searchFolder )
+	{
+		// サブフォルダがあればドリルダウンする
+		var subDirs = Directory.EnumerateDirectories( searchFolder );
+		foreach( var subDir in subDirs )
+		{
+			ListupTargetFiles( targetFileInfos, information, skipLen, subDir );
+		}
+		// フォルダを見て、そこの一覧を返す
+		var srcFiles = Directory.EnumerateFiles( searchFolder );
+		foreach( var srcFile in srcFiles )
+		{
+			var relFilePath = srcFile.Substring( skipLen );
+			targetFileInfos.Add( new TargetFileInformation
+			{
+				Source = srcFile,
+				Destination = Path.Combine( information.Destination, relFilePath ),
+				Status = TargetStatus.Unknown,
+				Ignore = false,	//	参照用ファイルパスリストをどこかから取り込んできてそれで無視するフラグを自動設定するのが一番いいんだよね…
+			} );
+		}
 	}
 	// 並列に大量のデータを作った後に一つずつ詰め込んでもらう(順番は考慮しない)
 	private void JoinTargetFileInfo( TargetFileInformation information )
 	{
+		//	リストが指定rされている場合はリストになければ除外する
+		if( m_focusFileListPath.Count != 0 )
+		{
+			information.Ignore = m_focusFileListPath.Contains( information.Destination ) ? false : true ;
+		}
 		lock( TargetFileInfos )
 		{
 			TargetFileInfos.Add( information );
@@ -117,7 +157,7 @@ public class CheckTargetFiles : IDisposable
 	private TargetFileInformation CheckTargetFileStatus( TargetFileInformation information )
 	{
 		// チェックは毎回確認する
-		if( information.Ignore == false )
+		//if( information.Ignore == false )	// 検査では無視しない
 		{
 			// コピー先がある場合は、実際に比較する
 			if( File.Exists( information.Destination ) )
@@ -178,4 +218,6 @@ public class CheckTargetFiles : IDisposable
 	}
 	private HashAlgorithm hashAlgorithm;
 	private int interlockedProgressValue;
+	private HashSet<string> m_focusFileListPath;
+
 }

@@ -5,7 +5,9 @@ using CopyFiles.Contracts.Views;
 using CopyFiles.Models;
 using CopyFiles.Services;
 using Microsoft.Extensions.Logging;
+using Microsoft.Win32;
 using Morrin.Extensions.Abstractions;
+using Morrin.Extensions.WPF;
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
@@ -26,6 +28,9 @@ public partial class CopyFileViewModel : ObservableObject, IProgressBarService
 
 	[ObservableProperty]
 	TargetInformation? selectTargetFolderInformation;
+
+	[ObservableProperty]
+	string focusFileListPath;
 
 	[ObservableProperty]
 	bool isProgressBarVisible;
@@ -92,7 +97,7 @@ public partial class CopyFileViewModel : ObservableObject, IProgressBarService
 		m_logger.LogInformation( System.Reflection.MethodBase.GetCurrentMethod()?.Name );
 		if( SelectTargetFolderInformation != null )
 		{
-			if( m_alart.Show( "選択された追跡フォルダを削除します。\nよろしいですか？", IDispAlert.Buttons.YesNo ) != IDispAlert.Result.Yes )
+			if( m_alert.Show( "選択された追跡フォルダを削除します。\nよろしいですか？", IDispAlert.Buttons.YesNo ) != IDispAlert.Result.Yes )
 			{
 				return;
 			}
@@ -101,16 +106,31 @@ public partial class CopyFileViewModel : ObservableObject, IProgressBarService
 		}
 	}
 
+	[RelayCommand]
+	void SelectFocusFileListPath()
+	{
+		OpenFileDialog dlg = new OpenFileDialog();
+		dlg.Filter = "すべてのファイル|*.*";
+		dlg.FileName = FocusFileListPath ?? string.Empty;
+		var ownerWindow = Utilities.GetOwnerWindow();
+		if( dlg.ShowDialog( ownerWindow ) != false )
+		{
+			FocusFileListPath = dlg.FileName;
+			App.Current.Properties[nameof(FocusFileListPath )] = FocusFileListPath;
+		}
+	}
+		//targetFilesListFilePath
+
 	[RelayCommand(CanExecute =nameof(CanExecuteTargetFileAction))]
 	void CopyToClipboard()
 	{
 		m_logger.LogInformation( System.Reflection.MethodBase.GetCurrentMethod()?.Name );
 		// データ形式を決めないといけないよね…テキストで処理することは確定事項だけども…
-		m_alart.Show( "工事中...クリップボードへのコピー" );
+		m_alert.Show( "工事中...クリップボードへのコピー" );
 	}
 	bool CanExecuteTargetFileAction()
 	{
-		// 非表示のものは処理対象に含めない
+		// 何かしら表示している場合は処理が可能
 		return DispTargetFileInformationCollection.Count > 0;
 	}
 	[RelayCommand]
@@ -121,9 +141,13 @@ public partial class CopyFileViewModel : ObservableObject, IProgressBarService
 		// プログレスバーが出ているかどうかで判定を変える
 		if( !IsProgressBarVisible )
 		{
+			if( !m_tokenSrc.TryReset() )
+			{
+				m_alert.Show( "キャンセル処理が初期化できません。もう一度試すか、一度アプリを終了してください。" );
+			}
 			using( var checkTargetFiles = new CheckTargetFiles( this, m_tokenSrc.Token ) )
 			{
-				await checkTargetFiles.ExecuteAsync( TargetFolderInformationCollection );
+				await checkTargetFiles.ExecuteAsync( TargetFolderInformationCollection, FocusFileListPath );
 				// データを構築し終わったらコピーする(ここはメインスレッドで良い)
 				m_targetFileInformationCollection = checkTargetFiles.TargetFileInfos;
 			}
@@ -137,10 +161,30 @@ public partial class CopyFileViewModel : ObservableObject, IProgressBarService
 	}
 
 	[RelayCommand(CanExecute =nameof(CanExecuteTargetFileAction))]
-	void CopyTargetFiles()
+	async void CopyTargetFiles()
 	{
 		m_logger.LogInformation( System.Reflection.MethodBase.GetCurrentMethod()?.Name );
-		m_alart.Show( "工事中...追跡対象ファイルのコピー" );
+		if( !IsProgressBarVisible )
+		{
+			if( !m_tokenSrc.TryReset() )
+			{
+				m_alert.Show( "キャンセル処理が初期化できません。もう一度試すか、一度アプリを終了してください。" );
+			}
+			if( m_targetFileInformationCollection != null && m_targetFileInformationCollection.Count != 0 )
+			{
+				using( var copyTargetFiles = new CopyTargetFiles( this, m_tokenSrc.Token, m_targetFileInformationCollection ) )
+				{
+					await copyTargetFiles.ExecuteAsync();
+				}
+			}
+			// 本当は再チェックになるけどここではやらない
+			m_alert.Show( "コピーが終わりました。" );
+		}
+		else
+		{
+			m_tokenSrc.Cancel();
+		}
+
 	}
 
 
@@ -152,21 +196,18 @@ public partial class CopyFileViewModel : ObservableObject, IProgressBarService
 		{
 			if( IsDispCopyFilesOnly )
 			{
-				foreach( var fileInfo in m_targetFileInformationCollection )
+				foreach( var fileInfo in m_targetFileInformationCollection.Where( info => info.Ignore == false ).OrderBy( info => info.Ignore ).ThenBy( info => info.Status ) )
 				{
-					if( !fileInfo.Ignore == false )
+					if( fileInfo.Status == TargetStatus.NotExist || fileInfo.Status == TargetStatus.Different )
 					{
-						if( fileInfo.Status == TargetStatus.NotExist || fileInfo.Status == TargetStatus.Different )
-						{
-							DispTargetFileInformationCollection.Add( fileInfo );
-						}
+						DispTargetFileInformationCollection.Add( fileInfo );
 					}
 				}
 			}
 			else
 			{
 				// 全面表示は無条件に追加
-				foreach( var fileInfo in m_targetFileInformationCollection )
+				foreach( var fileInfo in m_targetFileInformationCollection.OrderBy( info => info.Ignore ).ThenBy( info => info.Status ) )
 				{
 					DispTargetFileInformationCollection.Add( fileInfo );
 				}
@@ -179,7 +220,7 @@ public partial class CopyFileViewModel : ObservableObject, IProgressBarService
 	public CopyFileViewModel( ILogger<CopyFileViewModel> logger, IDispAlert alart )
 	{
 		m_logger = logger;
-		m_alart = alart;
+		m_alert = alart;
 		TargetFolderInformationCollection = new();
 		m_progressValueLocker = new();
 		// ここで読み込むときだけ状況が異なる
@@ -202,6 +243,8 @@ public partial class CopyFileViewModel : ObservableObject, IProgressBarService
 		DispTargetFileInformationCollection = new();
 		// ここは直接boolが格納されているので、そのまま変換する
 		IsDispCopyFilesOnly = ((JsonElement?)App.Current.Properties[nameof( IsDispCopyFilesOnly )])?.GetBoolean() ?? false;
+		FocusFileListPath = ((JsonElement?)App.Current.Properties[nameof( FocusFileListPath )])?.GetString() ?? string.Empty;
+
 		RefreshTargetFileInformationCollection();
 		m_tokenSrc = new();
 		PropertyChanged += ( s, e ) =>
@@ -216,6 +259,15 @@ public partial class CopyFileViewModel : ObservableObject, IProgressBarService
 				App.Current.Properties[nameof( IsDispCopyFilesOnly )] = IsDispCopyFilesOnly;
 				RefreshTargetFileInformationCollection();
 				break;
+			case nameof( FocusFileListPath ):
+				if( m_targetFileInformationCollection != null && m_targetFileInformationCollection.Count != 0 )
+				{
+					if( m_alert.Show( "対象ファイルを確認しなおしますか？", IDispAlert.Buttons.YesNo ) == IDispAlert.Result.Yes )
+					{
+						CheckTargetFilesCommand.Execute(null);
+					}
+				}
+				break;
 			}
 		};
 	}
@@ -227,7 +279,7 @@ public partial class CopyFileViewModel : ObservableObject, IProgressBarService
 	}
 	private List<TargetFileInformation>? m_targetFileInformationCollection;
 	private ILogger<CopyFileViewModel> m_logger;
-	private IDispAlert m_alart;
+	private IDispAlert m_alert;
 	private CancellationTokenSource m_tokenSrc;
 	private object m_progressValueLocker;
 }

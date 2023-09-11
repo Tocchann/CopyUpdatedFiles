@@ -18,4 +18,10 @@
     <ProjectReference Include="..\Morrin.Extensions.WPF\Morrin.Extensions.WPF.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="TargetFiles.txt">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>

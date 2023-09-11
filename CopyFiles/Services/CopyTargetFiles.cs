@@ -12,7 +12,7 @@ using System.Threading.Tasks.Dataflow;
 
 namespace CopyFiles.Services;
 
-public class CopyTargetFiles
+public class CopyTargetFiles : IDisposable
 {
 	public IProgressBarService ProgressBarService { get; }
 	public CancellationToken CancellationToken { get; }
@@ -26,12 +26,17 @@ public class CopyTargetFiles
 		ProgressBarService.IsIndeterminate = true;
 		ProgressBarService.IsProgressBarVisible = true;
 	}
+	public void Dispose()
+	{
+		ProgressBarService.IsProgressBarVisible = false;
+	}
 	public async Task ExecuteAsync()
 	{
 		var blockOptions = new ExecutionDataflowBlockOptions
 		{
 			CancellationToken = CancellationToken,
 			EnsureOrdered = false,
+			MaxDegreeOfParallelism = -1,	// 受け入れできるだけ受け入れる
 		};
 		var copyActionBlock = new ActionBlock<TargetFileInformation>( CopyAction, blockOptions );
 		ProgressBarService.ProgressMin = 0;
@@ -68,5 +73,6 @@ public class CopyTargetFiles
 			}
 		}
 	}
+
 	private int interlockedProgressValue;
 }
