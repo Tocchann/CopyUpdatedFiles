@@ -6,14 +6,14 @@ using System.Threading.Tasks;
 
 namespace CopyFiles.Core.Interop;
 
-internal static class Literals
+public static class Literals
 {
 	public const ushort IMAGE_DOS_SIGNATURE = 0x5A4D; // == "MZ"
 	public const uint IMAGE_NT_SIGNATURE = 0x00004550; // == "PE\0\0"
 	public const int IMAGE_NUMBEROF_DIRECTORY_ENTRIES = 16;    // IMAGE_DATA_DIRECTORY のエントリー数(固定長配列)
 }
 
-internal enum IMAGE_FILE_MACHINE : ushort
+public enum IMAGE_FILE_MACHINE : ushort
 {
 	UNKNOWN = 0,
 	I386 = 0x014C,
@@ -49,7 +49,7 @@ internal enum IMAGE_FILE_MACHINE : ushort
 	CEE = 0xC0EE
 }
 [Flags]
-internal enum IMAGE_FILE_CHARACTERISTICS : ushort
+public enum IMAGE_FILE_CHARACTERISTICS : ushort
 {
 	RELOCS_STRIPPED = 0x0001,  // Relocation info stripped from file.
 	EXECUTABLE_IMAGE = 0x0002,  // File is executable  (i.e. no unresolved external references).
@@ -68,14 +68,14 @@ internal enum IMAGE_FILE_CHARACTERISTICS : ushort
 	BYTES_REVERSED_HI = 0x8000,  // Bytes of machine word are reversed.
 }
 
-internal enum HeaderMagic : ushort
+public enum HeaderMagic : ushort
 {
 	PE32 = 0x010b,
 	PE64 = 0x020b,
 	ROM = 0x0107,
 }
 [Flags]
-internal enum SectionFlags : uint
+public enum SectionFlags : uint
 {
 	TYPE_NO_PAD = 0x00000008,
 	CNT_CODE = 0x00000020,
@@ -115,7 +115,7 @@ internal enum SectionFlags : uint
 	MEM_READ = 0x40000000,
 	MEM_WRITE = 0x80000000
 }
-internal enum IMAGE_DIRECTORY_ENTRY : int
+public enum IMAGE_DIRECTORY_ENTRY : int
 {
 	EXPORT, // Export Directory
 	IMPORT, // Import Directory

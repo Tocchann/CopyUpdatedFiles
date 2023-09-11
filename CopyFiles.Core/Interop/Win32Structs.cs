@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 namespace CopyFiles.Core.Interop;
 
 [StructLayout(LayoutKind.Sequential, Pack =1)]
-internal struct IMAGE_DOS_HEADER
+public struct IMAGE_DOS_HEADER
 {
 	public ushort e_magic;                     // Magic number
 	public ushort e_cblp;                      // bytes on last page of file
@@ -44,7 +44,7 @@ internal struct IMAGE_DOS_HEADER
 }
 
 [StructLayout( LayoutKind.Sequential )]
-internal struct IMAGE_FILE_HEADER
+public struct IMAGE_FILE_HEADER
 {
 	public IMAGE_FILE_MACHINE Machine;
 	public ushort NumberOfSections;
@@ -56,7 +56,7 @@ internal struct IMAGE_FILE_HEADER
 }
 
 [StructLayout( LayoutKind.Sequential )]
-internal struct IMAGE_OPTIONAL_HEADER32
+public struct IMAGE_OPTIONAL_HEADER32
 {
 	public HeaderMagic Magic;
 	public byte MajorLinkerVersion;
@@ -91,7 +91,7 @@ internal struct IMAGE_OPTIONAL_HEADER32
 	//IMAGE_DATA_DIRECTORY DataDirectory[IMAGE_NUMBEROF_DIRECTORY_ENTRIES];
 }
 [StructLayout( LayoutKind.Sequential )]
-internal struct IMAGE_OPTIONAL_HEADER64
+public struct IMAGE_OPTIONAL_HEADER64
 {
 	public HeaderMagic Magic;
 	public byte MajorLinkerVersion;
@@ -126,14 +126,14 @@ internal struct IMAGE_OPTIONAL_HEADER64
 }
 
 [StructLayout( LayoutKind.Sequential )]
-internal struct IMAGE_DATA_DIRECTORY
+public struct IMAGE_DATA_DIRECTORY
 {
 	public uint VirtualAddress;
 	public uint Size;
 }
 
 [StructLayout( LayoutKind.Sequential, CharSet=CharSet.Ansi)]
-internal struct IMAGE_SECTION_HEADER
+public struct IMAGE_SECTION_HEADER
 {
 	[MarshalAs( UnmanagedType.ByValTStr, SizeConst = 8 )]
 	public string Name;

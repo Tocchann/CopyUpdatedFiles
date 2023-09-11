@@ -84,11 +84,17 @@ public static class PeFileService
 
 	private static int GetPeSignaturePos( byte[] fileImage )
 	{
+		// 少なくともIMAGE_DOS_HEADERサイズは必須
+		int dosHeaderLength = Marshal.SizeOf<IMAGE_DOS_HEADER>();
+		if( fileImage.Length < dosHeaderLength )
+		{
+			return -1;
+		}
 		var data = ReadInt16( fileImage, 0 );
 		if( data == Literals.IMAGE_DOS_SIGNATURE )
 		{
-			data = ReadInt32( fileImage, 0x3C );
-			if( data + 4 <= fileImage.Length )
+			data = ReadInt32( fileImage, dosHeaderLength-sizeof(uint) );
+			if( data + sizeof(uint) <= fileImage.Length )
 			{
 				var signature = ReadInt32( fileImage, (int)data );
 				if( signature == Literals.IMAGE_NT_SIGNATURE )

@@ -1,6 +1,7 @@
 using CopyFiles.Core;
 using NUnit.Framework.Internal;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using System.Text;
 
 namespace TestCopyFiles;
@@ -17,6 +18,10 @@ public class Tests
 		var filePath = Path.Combine( AppDomain.CurrentDomain.BaseDirectory, "Signed.exe" );
 		Trace.WriteLine( filePath );
 		Assert.IsTrue( File.Exists(filePath), $"File.Exists({filePath})" );
+	}
+	[Test] public void CheckStructSize()
+	{
+		Assert.That( Marshal.SizeOf<CopyFiles.Core.Interop.IMAGE_DOS_HEADER>() - sizeof( uint ), Is.EqualTo( 0x3C ) );
 	}
 	[Test]
 	public void DumpSignedExe()
