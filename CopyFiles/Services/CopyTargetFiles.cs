@@ -9,6 +9,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
+using static System.Formats.Asn1.AsnWriter;
 
 namespace CopyFiles.Services;
 
@@ -67,7 +68,7 @@ public class CopyTargetFiles : IDisposable
 				Directory.CreateDirectory( dstDir );
 			}
 			// コピーする必要がある場合のみコピーすればよい(同じファイルはコピー不要)
-			if( information.Status == TargetStatus.NotExist || information.Status == TargetStatus.Different )
+			if( information.NeedCopy )
 			{
 				File.Copy( information.Source, information.Destination, true );
 			}

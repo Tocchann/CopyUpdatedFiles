@@ -161,7 +161,7 @@ public partial class CopyFileViewModel : ObservableObject, IProgressBarService
 	}
 
 	[RelayCommand(CanExecute =nameof(CanExecuteTargetFileAction))]
-	async void CopyTargetFiles()
+	async Task CopyTargetFiles()
 	{
 		m_logger.LogInformation( System.Reflection.MethodBase.GetCurrentMethod()?.Name );
 		if( !IsProgressBarVisible )
@@ -198,7 +198,7 @@ public partial class CopyFileViewModel : ObservableObject, IProgressBarService
 			{
 				foreach( var fileInfo in m_targetFileInformationCollection.Where( info => info.Ignore == false ).OrderBy( info => info.Ignore ).ThenBy( info => info.Status ) )
 				{
-					if( fileInfo.Status == TargetStatus.NotExist || fileInfo.Status == TargetStatus.Different )
+					if( fileInfo.NeedCopy )
 					{
 						DispTargetFileInformationCollection.Add( fileInfo );
 					}

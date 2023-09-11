@@ -144,7 +144,7 @@ public class CheckTargetFiles : IDisposable
 	// 並列に大量のデータを作った後に一つずつ詰め込んでもらう(順番は考慮しない)
 	private void JoinTargetFileInfo( TargetFileInformation information )
 	{
-		//	リストが指定rされている場合はリストになければ除外する
+		//	リストが指定されている場合はリストになければ除外する
 		if( m_focusFileListPath.Count != 0 )
 		{
 			information.Ignore = m_focusFileListPath.Contains( information.Destination ) ? false : true ;
@@ -159,15 +159,20 @@ public class CheckTargetFiles : IDisposable
 		// チェックは毎回確認する
 		//if( information.Ignore == false )	// 検査では無視しない
 		{
+			information.SourceVersion = GetFileVesrion( information.Source );
 			// コピー先がある場合は、実際に比較する
 			if( File.Exists( information.Destination ) )
 			{
+				information.DestinationVersion = GetFileVesrion( information.Destination );
 				// 両方存在する場合のみハッシュで比較する。
 				var srcHash = GetFileHash( information.Source );
 				var dstHash = GetFileHash( information.Destination );
 				if( srcHash != dstHash )
 				{
-					information.Status = TargetStatus.Different;
+					information.Status = 
+						information.SourceVersion == information.DestinationVersion 
+							? TargetStatus.DifferentSameVer
+							: TargetStatus.Different;
 				}
 				else
 				{
@@ -200,6 +205,16 @@ public class CheckTargetFiles : IDisposable
 		var result = Convert.ToHexString( hashBytes ).ToLower();
 		return result;
 	}
+	private Version? GetFileVesrion( string filePath )
+	{
+		var verInfo = FileVersionInfo.GetVersionInfo( filePath );
+		if( !string.IsNullOrEmpty( verInfo.FileVersion ) )
+		{
+			return new Version( verInfo.FileMajorPart, verInfo.FileMinorPart, verInfo.FileBuildPart, verInfo.FilePrivatePart );
+		}
+		return null;
+	}
+
 
 	private void PushTargetFileInfo( TargetFileInformation information )
 	{

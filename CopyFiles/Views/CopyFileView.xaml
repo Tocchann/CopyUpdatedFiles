@@ -65,7 +65,9 @@
         <GridView>
           <GridViewColumn Header="Status" DisplayMemberBinding="{Binding Status}" />
           <GridViewColumn Header="Source" DisplayMemberBinding="{Binding Source}" />
+          <GridViewColumn Header="Source Version" DisplayMemberBinding="{Binding SourceVersion}" />
           <GridViewColumn Header="Destination" DisplayMemberBinding="{Binding Destination}" />
+          <GridViewColumn Header="Destination Version" DisplayMemberBinding="{Binding DestinationVersion}" />
           <GridViewColumn Header="Ignore" DisplayMemberBinding="{Binding Ignore}" />
         </GridView>
       </ListView.View>
