@@ -33,14 +33,10 @@ public class SelectFolderDialog : ISelectFolderDialog
 	public bool? ShowDialog()
 	{
 		var ownerWindow = Utilities.GetOwnerWindow();
-		var hwndSrc = System.Windows.Interop.HwndSource.FromVisual( ownerWindow ) as System.Windows.Interop.HwndSource;
-		return ShowDialog( hwndSrc?.Handle??IntPtr.Zero );
+		return ShowDialog( NativeMethods.GetSafeOwnerWindow( ownerWindow ) );
 	}
-	internal bool? ShowDialog( IntPtr ownerWindow )
+	private bool? ShowDialog( IntPtr ownerWindow )
 	{
-		// オーナーウィンドウの正規化
-		ownerWindow = NativeMethods.GetSafeOwnerWindow( ownerWindow );
-
 		IFileOpenDialog? dlg = new FileOpenDialog() as IFileOpenDialog;  //	IUnknown::QueryInterfaceを使ってインターフェースを特定する
 		if( dlg != null )
 		{

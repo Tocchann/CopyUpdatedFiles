@@ -1,8 +1,12 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.VisualBasic;
 using Morrin.Extensions.Abstractions;
+using Morrin.Extensions.WPF.Interops;
 using System;
 using System.Windows;
+using static Morrin.Extensions.WPF.Interops.NativeMethods;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace Morrin.Extensions.WPF;
 
@@ -54,12 +58,28 @@ public class DispAlert : IDispAlert
 	{
 		m_logger?.LogInformation( $"WPF.DispAlert.Show( message: {message}, title: {title}, button: {button}, icon: {icon}, defaultResult: {defaultResult}, options: {options})" );
 
-		// ここはタイトルが空でも無視して利用する
-		var result = Application.Current.MainWindow != null
-			? MessageBox.Show( Application.Current.MainWindow, message, title, (MessageBoxButton)button, (MessageBoxImage)icon, (MessageBoxResult)defaultResult, (MessageBoxOptions)options )
-			: MessageBox.Show( message, title, (MessageBoxButton)button, (MessageBoxImage)icon, (MessageBoxResult)defaultResult, (MessageBoxOptions)options );
-
-		return (IDispAlert.Result)result;
+		// TODO:TaskDialog APIをつかって、PerMonitorに対応した形で表現する(ただし、ボタンパターンによっては表現できないんだよね…どうしよう？) 
+		IntPtr ownerWindow = NativeMethods.GetSafeOwnerWindow( Utilities.GetOwnerWindow() );
+		var tdcf = button switch
+		{
+			IDispAlert.Buttons.OK => TaskDialogCommonButtonFlags.Ok,
+			IDispAlert.Buttons.OKCancel => TaskDialogCommonButtonFlags.Ok | TaskDialogCommonButtonFlags.Cancel,
+			IDispAlert.Buttons.YesNo => TaskDialogCommonButtonFlags.Yes | TaskDialogCommonButtonFlags.No,
+			IDispAlert.Buttons.YesNoCancel => TaskDialogCommonButtonFlags.Yes | TaskDialogCommonButtonFlags.No | TaskDialogCommonButtonFlags.Cancel,
+			_ => throw new NotImplementedException(),
+		};
+		var nativeIcon = icon switch
+		{
+			IDispAlert.Icon.None => IntPtr.Zero,
+			IDispAlert.Icon.Error => NativeMethods.MAKEINTRESOURCE( -2 ), // == TD_ERROR_ICON
+			IDispAlert.Icon.Question => NativeMethods.MAKEINTRESOURCE( 32514 ), // == IDI_QUESTION
+			IDispAlert.Icon.Exclamation => NativeMethods.MAKEINTRESOURCE( -1 ), // == TD_WARNING_ICON
+			IDispAlert.Icon.Asterisk => NativeMethods.MAKEINTRESOURCE( -3 ), // TD_INFORMATION_ICON
+			_ => throw new NotImplementedException(),
+		};
+		// アイコンリソースはシステムリソースしか使わないのでインスタンスはいらない
+		NativeMethods.TaskDialog( ownerWindow, IntPtr.Zero, title, string.Empty, message, tdcf, nativeIcon, out var result );
+		return result;
 	}
 	private ILogger<DispAlert>? m_logger;
 }

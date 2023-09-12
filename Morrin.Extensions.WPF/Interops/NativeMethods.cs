@@ -1,9 +1,11 @@
-﻿using System;
+﻿using Morrin.Extensions.Abstractions;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows;
 using static Morrin.Extensions.Abstractions.IDispAlert;
 
 namespace Morrin.Extensions.WPF.Interops;
@@ -15,6 +17,11 @@ internal static class NativeMethods
 	/// </summary>
 	/// <param name="hwndOwner"></param>
 	/// <returns></returns>
+	public static IntPtr GetSafeOwnerWindow( Window ownerWindow )
+	{
+		var hwndSrc = System.Windows.Interop.HwndSource.FromVisual( ownerWindow ) as System.Windows.Interop.HwndSource;
+		return NativeMethods.GetSafeOwnerWindow( hwndSrc?.Handle ?? IntPtr.Zero );
+	}
 	public static IntPtr GetSafeOwnerWindow( IntPtr hwndOwner )
 	{
 		//	無効なウィンドウを参照している場合の排除
@@ -73,4 +80,26 @@ internal static class NativeMethods
 		Success,
 		Cancelled=1223,
 	}
+	// TaskDialog
+	public static nint MAKEINTRESOURCE( int resId )
+	{
+		//#define MAKEINTRESOURCEW(i) ((LPWSTR)((ULONG_PTR)((WORD)(i))))
+		return new nint( (ushort)(resId) );
+	}
+	[Flags]
+	public enum TaskDialogCommonButtonFlags
+	{
+		Ok = 0x0001, // selected control return value IDOK
+		Yes = 0x0002, // selected control return value IDYES
+		No = 0x0004, // selected control return value IDNO
+		Cancel = 0x0008, // selected control return value IDCANCEL
+		// WPFのMessageBoxでは利用しないので定義もいれない
+		//Retry = 0x0010, // selected control return value IDRETRY
+		//Close = 0x0020  // selected control return value IDCLOSE
+	}
+	[DllImport( "Comctl32.dll", CharSet = CharSet.Unicode, PreserveSig = false )]
+	public static extern void TaskDialog(
+		IntPtr hwndOwner, IntPtr hInstance,
+		string pszWindowTitle, string pszMainInstruction, string pszContent,
+		TaskDialogCommonButtonFlags dwCommonButtons, IntPtr pszIcon, out IDispAlert.Result pnButton );
 }

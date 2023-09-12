@@ -5,7 +5,7 @@
 /// </summary>
 public interface IDispAlert
 {
-	public enum Result
+	public enum Result : int
 	{
 		None = 0,
 		OK = 1,
