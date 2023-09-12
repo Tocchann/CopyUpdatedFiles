@@ -17,10 +17,15 @@ internal static class NativeMethods
 	/// </summary>
 	/// <param name="hwndOwner"></param>
 	/// <returns></returns>
-	public static IntPtr GetSafeOwnerWindow( Window ownerWindow )
+	public static IntPtr GetSafeOwnerWindow( Window? ownerWindow )
 	{
-		var hwndSrc = System.Windows.Interop.HwndSource.FromVisual( ownerWindow ) as System.Windows.Interop.HwndSource;
-		return NativeMethods.GetSafeOwnerWindow( hwndSrc?.Handle ?? IntPtr.Zero );
+		IntPtr hwndOwner = IntPtr.Zero;
+		if( ownerWindow != null )
+		{
+			var hwndSrc = System.Windows.Interop.HwndSource.FromVisual( ownerWindow ) as System.Windows.Interop.HwndSource;
+			hwndOwner = hwndSrc?.Handle ?? IntPtr.Zero;
+		}
+		return NativeMethods.GetSafeOwnerWindow( hwndOwner );
 	}
 	public static IntPtr GetSafeOwnerWindow( IntPtr hwndOwner )
 	{

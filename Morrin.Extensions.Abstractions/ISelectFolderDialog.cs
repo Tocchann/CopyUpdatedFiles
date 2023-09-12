@@ -6,6 +6,10 @@ using System.Threading.Tasks;
 
 namespace Morrin.Extensions.Abstractions
 {
+	/// <summary>
+	/// .NET 8までのつなぎ版
+	/// インターフェース自体は残しておいてもいいが、AddPlace は無くなる可能性が高い
+	/// </summary>
 	public interface ISelectFolderDialog
 	{
 		public enum FDAP
@@ -34,5 +38,6 @@ namespace Morrin.Extensions.Abstractions
 		public void AddPlace( string folder, FDAP fdap );
 
 		public bool? ShowDialog();
+		// public bool? ShowDialog( Window ownerWindow );
 	}
 }

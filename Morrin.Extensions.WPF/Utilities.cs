@@ -9,7 +9,7 @@ namespace Morrin.Extensions.WPF;
 
 public static class Utilities
 {
-	public static Window GetOwnerWindow()
+	public static Window? GetOwnerWindow()
 	{
 		var ownerWindow = Application.Current.MainWindow;
 		foreach( Window window in Application.Current.Windows )
