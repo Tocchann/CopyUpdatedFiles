@@ -1,4 +1,6 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿//#define USE_TASK_DIALOG
+
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.VisualBasic;
 using Morrin.Extensions.Abstractions;
@@ -57,8 +59,7 @@ public class DispAlert : IDispAlert
 		IDispAlert.Options options = IDispAlert.Options.None )
 	{
 		m_logger?.LogInformation( $"WPF.DispAlert.Show( message: {message}, title: {title}, button: {button}, icon: {icon}, defaultResult: {defaultResult}, options: {options})" );
-
-		// TODO:TaskDialog APIをつかって、PerMonitorに対応した形で表現する(ただし、ボタンパターンによっては表現できないんだよね…どうしよう？) 
+#if USE_TASK_DIALOG
 		IntPtr ownerWindow = NativeMethods.GetSafeOwnerWindow( Utilities.GetOwnerWindow() );
 		var tdcf = button switch
 		{
@@ -80,6 +81,14 @@ public class DispAlert : IDispAlert
 		// アイコンリソースはシステムリソースしか使わないのでインスタンスはいらない
 		NativeMethods.TaskDialog( ownerWindow, IntPtr.Zero, title, string.Empty, message, tdcf, nativeIcon, out var result );
 		return result;
+#else
+		// ここはタイトルが空でも無視して利用する
+		var result = Application.Current.MainWindow != null
+			? MessageBox.Show( Application.Current.MainWindow, message, title, (MessageBoxButton)button, (MessageBoxImage)icon, (MessageBoxResult)defaultResult, (MessageBoxOptions)options )
+			: MessageBox.Show( message, title, (MessageBoxButton)button, (MessageBoxImage)icon, (MessageBoxResult)defaultResult, (MessageBoxOptions)options );
+
+		return (IDispAlert.Result)result;
+#endif
 	}
 	private ILogger<DispAlert>? m_logger;
 }
