@@ -18,6 +18,7 @@ using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Windows.Input;
 
 namespace CopyFiles.ViewModels;
 
@@ -66,7 +67,7 @@ public partial class CopyFileViewModel : ObservableObject, IProgressBarService
 			}
 		}
 	}
-	[RelayCommand(CanExecute =nameof( CanExecuteSelectTargetFolderInformation ) )]
+	[RelayCommand(CanExecute=nameof( CanExecuteSelectTargetFolderInformation ) )]
 	void EditFolder()
 	{
 		m_logger.LogInformation( System.Reflection.MethodBase.GetCurrentMethod()?.Name );
@@ -91,7 +92,7 @@ public partial class CopyFileViewModel : ObservableObject, IProgressBarService
 	{
 		return SelectTargetFolderInformation != null;
 	}
-	[RelayCommand(CanExecute =nameof(CanExecuteSelectTargetFolderInformation))]
+	[RelayCommand(CanExecute=nameof(CanExecuteSelectTargetFolderInformation))]
 	void RemoveFolder()
 	{
 		m_logger.LogInformation( System.Reflection.MethodBase.GetCurrentMethod()?.Name );
@@ -121,13 +122,13 @@ public partial class CopyFileViewModel : ObservableObject, IProgressBarService
 	}
 		//targetFilesListFilePath
 
-	[RelayCommand(CanExecute =nameof(CanExecuteTargetFileAction))]
-	void CopyToClipboard()
-	{
-		m_logger.LogInformation( System.Reflection.MethodBase.GetCurrentMethod()?.Name );
-		// データ形式を決めないといけないよね…テキストで処理することは確定事項だけども…
-		m_alert.Show( "工事中...クリップボードへのコピー" );
-	}
+	//[RelayCommand(CanExecute=nameof(CanExecuteTargetFileAction))]
+	//void CopyToClipboard()
+	//{
+	//	m_logger.LogInformation( System.Reflection.MethodBase.GetCurrentMethod()?.Name );
+	//	// データ形式を決めないといけないよね…テキストで処理することは確定事項だけども…
+	//	m_alert.Show( "工事中...クリップボードへのコピー" );
+	//}
 	bool CanExecuteTargetFileAction()
 	{
 		// 何かしら表示している場合は処理が可能
@@ -160,10 +161,15 @@ public partial class CopyFileViewModel : ObservableObject, IProgressBarService
 		}
 	}
 
-	[RelayCommand(CanExecute =nameof(CanExecuteTargetFileAction))]
+	[RelayCommand(CanExecute=nameof(CanExecuteTargetFileAction))]
 	async Task CopyTargetFiles()
 	{
 		m_logger.LogInformation( System.Reflection.MethodBase.GetCurrentMethod()?.Name );
+		if( CanExecuteTargetFileAction() == false )
+		{
+			m_alert.Show( "コピーするものがありません。" );
+			return;
+		}
 		if( !IsProgressBarVisible )
 		{
 			if( !m_tokenSrc.TryReset() )
@@ -213,8 +219,8 @@ public partial class CopyFileViewModel : ObservableObject, IProgressBarService
 				}
 			}
 		}
-		CopyToClipboardCommand.NotifyCanExecuteChanged();
-		CopyTargetFilesCommand.NotifyCanExecuteChanged();
+		//CopyToClipboardCommand.NotifyCanExecuteChanged();
+		CopyTargetFilesCommand?.NotifyCanExecuteChanged();
 	}
 
 	public CopyFileViewModel( ILogger<CopyFileViewModel> logger, IDispAlert alart )

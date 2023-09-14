@@ -37,7 +37,7 @@ public class CopyTargetFiles : IDisposable
 		{
 			CancellationToken = CancellationToken,
 			EnsureOrdered = false,
-			MaxDegreeOfParallelism = -1,	// 受け入れできるだけ受け入れる
+			MaxDegreeOfParallelism = Environment.ProcessorCount,
 		};
 		var copyActionBlock = new ActionBlock<TargetFileInformation>( CopyAction, blockOptions );
 		ProgressBarService.ProgressMin = 0;
@@ -75,5 +75,5 @@ public class CopyTargetFiles : IDisposable
 		}
 	}
 
-	private int interlockedProgressValue;
+	volatile private int interlockedProgressValue;
 }

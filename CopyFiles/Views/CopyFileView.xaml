@@ -55,6 +55,7 @@
         <ColumnDefinition Width="4" />
         <ColumnDefinition Width="auto" />
       </Grid.ColumnDefinitions>
+
       <Label Grid.Column="0" Content="対象ファイルリスト" />
       <TextBox Grid.Column="1" Text="{Binding FocusFileListPath}" />
       <Button Grid.Column="3" Content="..." Padding="2,4" Command="{Binding SelectFocusFileListPathCommand}" />
@@ -71,6 +72,10 @@
           <GridViewColumn Header="Ignore" DisplayMemberBinding="{Binding Ignore}" />
         </GridView>
       </ListView.View>
+      <d:ListViewItem />
+      <d:ListViewItem />
+      <d:ListViewItem />
+      <d:ListViewItem />
     </ListView>
     <CheckBox Grid.Row="5" Margin="0,4" Content="コピー対象ファイルのみ表示する" IsChecked="{Binding IsDispCopyFilesOnly}" />
     <ProgressBar Grid.Row="6" Height="4" Margin="0,4"
@@ -85,7 +90,7 @@
         <ColumnDefinition Width="4" />
         <ColumnDefinition Width="96" />
       </Grid.ColumnDefinitions>
-      <Button Grid.Column="0" Content="クリップボードに一覧をコピー" Command="{Binding CopyToClipboardCommand}" />
+      <!--<Button Grid.Column="0" Content="クリップボードに一覧をコピー" Command="{Binding CopyToClipboardCommand}" />-->
       <Button Grid.Column="2" Content="確認" Command="{Binding CheckTargetFilesCommand}" />
       <Button Grid.Column="4" Content="コピー" Command="{Binding CopyTargetFilesCommand}" />
     </Grid>

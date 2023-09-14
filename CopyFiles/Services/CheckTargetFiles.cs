@@ -43,6 +43,7 @@ public class CheckTargetFiles : IDisposable
 		{
 			CancellationToken = CancellationToken,
 			EnsureOrdered = false,
+			MaxDegreeOfParallelism = Environment.ProcessorCount,
 		};
 		var linkOptions = new DataflowLinkOptions
 		{

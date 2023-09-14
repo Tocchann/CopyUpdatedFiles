@@ -11,6 +11,7 @@ using System;
 using System.Collections.Generic;
 using System.Configuration;
 using System.Data;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
@@ -22,8 +23,6 @@ namespace CopyFiles
     /// </summary>
     public partial class App : Application
 	{
-		private IHost? m_host;
-
 		// App.Current で自分を返すようにしておく
 		public static new App Current => (App)Application.Current;
 
@@ -76,7 +75,11 @@ namespace CopyFiles
 		{
 			var alert = GetService<IDispAlert>();
 			alert?.Show( e.Exception.ToString() );
-			e.Handled = App.Current.MainWindow != null;
+			var lifeTime = GetService<IHostApplicationLifetime>();
+			Trace.WriteLine( $"lifeTime.ApplicationStarted.IsCancellationRequested={lifeTime.ApplicationStarted.IsCancellationRequested}" );
+			//e.Handled = App.Current.MainWindow != null && App.Current.MainWindow.Visibility == Visibility.Visible;
+			e.Handled = lifeTime?.ApplicationStarted.IsCancellationRequested ?? false;
 		}
+		private IHost? m_host;
 	}
 }
