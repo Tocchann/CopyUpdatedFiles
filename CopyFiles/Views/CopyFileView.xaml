@@ -24,16 +24,13 @@
       <RowDefinition Height="auto" />
       <RowDefinition Height="auto" />
     </Grid.RowDefinitions>
-    <ListView Grid.Row="0" Margin="0,4" ItemsSource="{Binding TargetFolderInformationCollection}" SelectedItem="{Binding SelectTargetFolderInformation}">
+    <ListView Grid.Row="0" Margin="0,4" ItemsSource="{Binding TargetFolderInformationCollection}" SelectedItem="{Binding SelectTargetFolderInformation}" d:ItemsSource="{d:SampleData ItemCount=5}">
       <ListView.View>
         <GridView>
           <GridViewColumn Header="コピー元" DisplayMemberBinding="{Binding Source}" />
           <GridViewColumn Header="コピー先" DisplayMemberBinding="{Binding Destination}" />
         </GridView>
       </ListView.View>
-      <d:ListViewItem />
-      <d:ListViewItem />
-      <d:ListViewItem />
     </ListView>
     <Grid Grid.Row="1" Margin="0,4">
       <Grid.ColumnDefinitions>
@@ -61,7 +58,7 @@
       <Button Grid.Column="3" Content="..." Padding="2,4" Command="{Binding SelectFocusFileListPathCommand}" />
     </Grid>
     <Separator Grid.Row="3" Margin="-16,4" />
-    <ListView Grid.Row="4" Margin="0,4" ItemsSource="{Binding DispTargetFileInformationCollection}">
+    <ListView Grid.Row="4" Margin="0,4" ItemsSource="{Binding DispTargetFileInformationCollection}" d:ItemsSource="{d:SampleData ItemCount=5}">
       <ListView.View>
         <GridView>
           <GridViewColumn Header="Status" DisplayMemberBinding="{Binding Status}" />
@@ -72,10 +69,6 @@
           <GridViewColumn Header="Ignore" DisplayMemberBinding="{Binding Ignore}" />
         </GridView>
       </ListView.View>
-      <d:ListViewItem />
-      <d:ListViewItem />
-      <d:ListViewItem />
-      <d:ListViewItem />
     </ListView>
     <CheckBox Grid.Row="5" Margin="0,4" Content="コピー対象ファイルのみ表示する" IsChecked="{Binding IsDispCopyFilesOnly}" />
     <ProgressBar Grid.Row="6" Height="4" Margin="0,4"

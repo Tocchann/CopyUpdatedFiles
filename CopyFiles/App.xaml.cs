@@ -76,7 +76,7 @@ namespace CopyFiles
 			var alert = GetService<IDispAlert>();
 			alert?.Show( e.Exception.ToString() );
 			var lifeTime = GetService<IHostApplicationLifetime>();
-			Trace.WriteLine( $"lifeTime.ApplicationStarted.IsCancellationRequested={lifeTime.ApplicationStarted.IsCancellationRequested}" );
+			Trace.WriteLine( $"lifeTime.ApplicationStarted.IsCancellationRequested={lifeTime?.ApplicationStarted.IsCancellationRequested}" );
 			//e.Handled = App.Current.MainWindow != null && App.Current.MainWindow.Visibility == Visibility.Visible;
 			e.Handled = lifeTime?.ApplicationStarted.IsCancellationRequested ?? false;
 		}

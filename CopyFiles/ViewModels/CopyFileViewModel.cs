@@ -24,8 +24,8 @@ namespace CopyFiles.ViewModels;
 
 public partial class CopyFileViewModel : ObservableObject, IProgressBarService
 {
-	public ObservableCollection<TargetInformation> TargetFolderInformationCollection { get; }
-	public ObservableCollection<TargetFileInformation> DispTargetFileInformationCollection { get; }
+	public ObservableCollection<TargetInformation> TargetFolderInformationCollection { get; } = new();
+	public ObservableCollection<TargetFileInformation> DispTargetFileInformationCollection { get; } = new();
 
 	[ObservableProperty]
 	TargetInformation? selectTargetFolderInformation;
@@ -227,7 +227,6 @@ public partial class CopyFileViewModel : ObservableObject, IProgressBarService
 	{
 		m_logger = logger;
 		m_alert = alart;
-		TargetFolderInformationCollection = new();
 		m_progressValueLocker = new();
 		// ここで読み込むときだけ状況が異なる
 		if( App.Current.Properties.Contains( nameof( TargetFolderInformationCollection ) ) )
@@ -246,7 +245,6 @@ public partial class CopyFileViewModel : ObservableObject, IProgressBarService
 				}
 			}
 		}
-		DispTargetFileInformationCollection = new();
 		// ここは直接boolが格納されているので、そのまま変換する
 		IsDispCopyFilesOnly = ((JsonElement?)App.Current.Properties[nameof( IsDispCopyFilesOnly )])?.GetBoolean() ?? false;
 		FocusFileListPath = ((JsonElement?)App.Current.Properties[nameof( FocusFileListPath )])?.GetString() ?? string.Empty;
