@@ -11,15 +11,19 @@ public static class Utilities
 {
 	public static Window? GetOwnerWindow()
 	{
-		var ownerWindow = Application.Current.MainWindow;
-		foreach( Window window in Application.Current.Windows )
+		var window = default(Window);
+		foreach( Window search in Application.Current.Windows )
 		{
-			if( window.IsActive )
+			if( search.IsActive && search.Parent == null )
 			{
-				ownerWindow = window;
+				window = search;
 				break;
 			}
 		}
-		return ownerWindow;
+		if( window == null )
+		{
+			window = Application.Current.MainWindow;
+		}
+		return window;
 	}
 }

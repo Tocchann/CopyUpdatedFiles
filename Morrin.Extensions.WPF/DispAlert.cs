@@ -80,7 +80,8 @@ public class DispAlert : IDispAlert
 		};
 		// アイコンリソースはシステムリソースしか使わないのでインスタンスはいらない
 		NativeMethods.TaskDialog( ownerWindow, IntPtr.Zero, title, string.Empty, message, tdcf, nativeIcon, out var result );
-		return result;
+		// Windows OS の IDOK などをそれぞれでenum化しているだけなので、キャストで済ませられる(変換処理はいらない)
+		return (IDispAlert.Result)result;
 #else
 		// ここはタイトルが空でも無視して利用する
 		var result = Application.Current.MainWindow != null
