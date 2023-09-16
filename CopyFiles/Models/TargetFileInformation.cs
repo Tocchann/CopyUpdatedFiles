@@ -41,8 +41,8 @@ public partial class TargetFileInformation : TargetInformation
 				TargetStatus.Different => true, // コピー先と異なる
 				TargetStatus.DifferentSameVer => true, // コピー先と異なるがバージョンが同じ
 				TargetStatus.SameFullMatch => false, // コピー先と一致(日付も一致)
-				TargetStatus.SameWithoutDate => false, // コピー先と一致(ただし日付違い。ビルドされたけど内容が変わっていない)
-				TargetStatus.SameWithoutSize => false, // サイズは違うが内容は一致(実行ファイルで署名の有無が該当)
+				TargetStatus.SameWithoutDate => false, // コピー先と一致(日付が違うだけだったらコピーしなくても問題ないのでコピーしない)
+				TargetStatus.SameWithoutSize => false, // サイズは違うが内容は一致(実行ファイルで署名の有無が該当。署名の有無だけなら、変更しない)
 													   //TargetStatus.Unknown => false, // 不明はプログラム的にいただけない状態
 				_ => throw new ArgumentOutOfRangeException( nameof( Status ) ),
 			};
