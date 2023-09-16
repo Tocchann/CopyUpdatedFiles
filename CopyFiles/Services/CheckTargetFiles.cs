@@ -25,7 +25,6 @@ public class CheckTargetFiles : IDisposable
 	{
 		ProgressBarService = progressBarService;
 		CancellationToken = token;
-		hashAlgorithm = SHA256.Create();
 		TargetFileInfos = new();
 		m_focusFileListPath = new();
 		ProgressBarService.IsIndeterminate = true;
@@ -33,7 +32,6 @@ public class CheckTargetFiles : IDisposable
 	}
 	public void Dispose()
 	{
-		hashAlgorithm.Dispose();
 		ProgressBarService.IsProgressBarVisible = false;
 	}
 
@@ -166,26 +164,29 @@ public class CheckTargetFiles : IDisposable
 			{
 				information.DestinationVersion = GetFileVesrion( information.Destination );
 				// 両方存在する場合のみハッシュで比較する。
-				var srcHash = GetFileHash( information.Source );
-				var dstHash = GetFileHash( information.Destination );
-				if( srcHash != dstHash )
+				using( var hashAlgorithm = SHA256.Create() )
 				{
-					information.Status = 
-						information.SourceVersion == information.DestinationVersion 
-							? TargetStatus.DifferentSameVer
-							: TargetStatus.Different;
-				}
-				else
-				{
-					// 内容は一致するが日付などが異なっている場合のフラグ判定
-					var srcInfo = new FileInfo( information.Source );
-					var dstInfo = new FileInfo( information.Destination );
-					information.Status =
-						srcInfo.Length != dstInfo.Length
-							? TargetStatus.SameWithoutSize
-							: srcInfo.LastWriteTimeUtc != dstInfo.LastWriteTimeUtc
-								? TargetStatus.SameWithoutDate
-								: TargetStatus.SameFullMatch;
+					var srcHash = GetFileHash( hashAlgorithm, information.Source );
+					var dstHash = GetFileHash( hashAlgorithm, information.Destination );
+					if( srcHash != dstHash )
+					{
+						information.Status =
+							information.SourceVersion != null && information.SourceVersion == information.DestinationVersion
+								? TargetStatus.DifferentSameVer
+								: TargetStatus.Different;
+					}
+					else
+					{
+						// 内容は一致するが日付などが異なっている場合のフラグ判定
+						var srcInfo = new FileInfo( information.Source );
+						var dstInfo = new FileInfo( information.Destination );
+						information.Status =
+							srcInfo.Length != dstInfo.Length
+								? TargetStatus.SameWithoutSize
+								: srcInfo.LastWriteTimeUtc != dstInfo.LastWriteTimeUtc
+									? TargetStatus.SameWithoutDate
+									: TargetStatus.SameFullMatch;
+					}
 				}
 			}
 			else
@@ -196,7 +197,7 @@ public class CheckTargetFiles : IDisposable
 		return information;
 	}
 
-	private string GetFileHash( string filePath )
+	private string GetFileHash( HashAlgorithm hashAlgorithm, string filePath )
 	{
 		// 計算処理はオンメモリで行う(いろいろ面倒なのでね)
 		var fileImage = File.ReadAllBytes( filePath );
@@ -232,7 +233,6 @@ public class CheckTargetFiles : IDisposable
 		//	existInfo.Status = information.Status;
 		//}
 	}
-	private HashAlgorithm hashAlgorithm;
 	private int interlockedProgressValue;
 	private HashSet<string> m_focusFileListPath;
 
