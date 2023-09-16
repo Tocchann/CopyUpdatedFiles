@@ -202,7 +202,8 @@ public partial class CopyFileViewModel : ObservableObject, IProgressBarService
 		{
 			if( IsDispCopyFilesOnly )
 			{
-				foreach( var fileInfo in m_targetFileInformationCollection.Where( info => info.Ignore == false ).OrderBy( info => info.Ignore ).ThenBy( info => info.Status ) )
+				foreach( var fileInfo in m_targetFileInformationCollection.Where( info => info.Ignore == false )
+					.OrderBy( info => info.Ignore ).ThenBy( info => info.Status ).ThenBy( info => info.Source ) )
 				{
 					if( fileInfo.NeedCopy )
 					{
@@ -213,7 +214,8 @@ public partial class CopyFileViewModel : ObservableObject, IProgressBarService
 			else
 			{
 				// 全面表示は無条件に追加
-				foreach( var fileInfo in m_targetFileInformationCollection.OrderBy( info => info.Ignore ).ThenBy( info => info.Status ) )
+				foreach( var fileInfo in m_targetFileInformationCollection
+					.OrderBy( info => info.Ignore ).ThenBy( info => info.Status ).ThenBy( info => info.Source ) )
 				{
 					DispTargetFileInformationCollection.Add( fileInfo );
 				}
