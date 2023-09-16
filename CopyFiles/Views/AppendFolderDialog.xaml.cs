@@ -41,8 +41,8 @@ namespace CopyFiles.Views
 		public AppendFolderViewModel ViewModel => (AppendFolderViewModel)DataContext;
 		public bool? ShowWindow()
 		{
-			// ポップアップなのでオーナーを設定しておく必要がある
-			Owner = App.Current.MainWindow;
+			// ポップアップなのでオーナーを設定する
+			Owner = Application.Current.MainWindow;
 			return base.ShowDialog();
 		}
 	}

@@ -6,6 +6,7 @@ using CopyFiles.Views;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Morrin.Extensions.Abstractions;
 using System;
 using System.Collections.Generic;
@@ -42,26 +43,33 @@ namespace CopyFiles
 
 		private void ConfigureWpfLifeTime( IServiceProvider services )
 		{
+			var logger = services.GetService<ILogger<App>>();
 			var lifeTime = services.GetService<IHostApplicationLifetime>();
 			if( lifeTime != null )
 			{
-				// アプリケーションライフタイムの変遷に合わせてメインウィンドウの寿命を制御する
-				//lifeTime.ApplicationStarted.Register( () => GetService<IView>()?.ShowWindow() );
+				// VMから終了を行えるようにしておく
 				lifeTime.ApplicationStopping.Register( () => App.Current.MainWindow?.Close() );
 			}
 		}
 		private void OnConfigureServices( HostBuilderContext context, IServiceCollection collection )
 		{
+			// メッセージボックス
 			Morrin.Extensions.WPF.DispAlert.ConfigureServices( collection );
+
+			// フォルダ選択ダイアログ
 			Morrin.Extensions.WPF.SelectFolderDialog.ConfigureServices( collection );
+
+			collection.AddHostedService<ApplicationHostService>();
 
 			collection.AddSingleton<CopyFileViewModel>();
 			collection.AddSingleton<IView, CopyFileView>();
+
 			collection.AddTransient<AppendFolderViewModel>();
 			collection.AddTransient<IAppendFolderDialog, AppendFolderDialog>();
+
 			collection.AddTransient<IFileService, FileService>();
 			collection.AddTransient<IPersistAndRestoreService, PersistAndRestoreService>();
-			collection.AddHostedService<ApplicationHostService>();
+
 		}
 		private async void OnExitAsync( object sender, ExitEventArgs e )
 		{
