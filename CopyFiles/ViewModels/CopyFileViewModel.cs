@@ -48,6 +48,9 @@ public partial class CopyFileViewModel : ObservableObject, IProgressBarService
 	int progressValue;
 
 	[ObservableProperty]
+	bool isHideIgnoreFiles;
+
+	[ObservableProperty]
 	bool isDispCopyFilesOnly;
 
 	[ObservableProperty]
@@ -236,25 +239,18 @@ public partial class CopyFileViewModel : ObservableObject, IProgressBarService
 		// 絞り込み表示するので絞り込んでセットする
 		if( m_targetFileInformationCollection != null )
 		{
+			IEnumerable<TargetFileInformation> collection = m_targetFileInformationCollection;
+			if( IsHideIgnoreFiles )
+			{
+				collection = collection.Where( info => info.Ignore == false );
+			}
 			if( IsDispCopyFilesOnly )
 			{
-				foreach( var fileInfo in m_targetFileInformationCollection.Where( info => info.Ignore == false )
-					.OrderBy( info => info.Ignore ).ThenBy( info => info.Status ).ThenBy( info => info.Source ) )
-				{
-					if( fileInfo.NeedCopy )
-					{
-						DispTargetFileInformationCollection.Add( fileInfo );
-					}
-				}
+				collection = collection.Where( info => info.NeedCopy );
 			}
-			else
+			foreach( var fileInfo in collection.OrderBy( info => info.Ignore ).ThenBy( info => info.Status ).ThenBy( info => info.Source ) )
 			{
-				// 全面表示は無条件に追加
-				foreach( var fileInfo in m_targetFileInformationCollection
-					.OrderBy( info => info.Ignore ).ThenBy( info => info.Status ).ThenBy( info => info.Source ) )
-				{
-					DispTargetFileInformationCollection.Add( fileInfo );
-				}
+				DispTargetFileInformationCollection.Add( fileInfo );
 			}
 		}
 		CopyTargetFilesCommand?.NotifyCanExecuteChanged();
@@ -285,6 +281,7 @@ public partial class CopyFileViewModel : ObservableObject, IProgressBarService
 		}
 		// ここは直接boolが格納されているので、そのまま変換する
 		IsDispCopyFilesOnly = ((JsonElement?)App.Current.Properties[nameof( IsDispCopyFilesOnly )])?.GetBoolean() ?? false;
+		IsHideIgnoreFiles = ((JsonElement?)App.Current.Properties[nameof( IsHideIgnoreFiles )])?.GetBoolean() ?? false;
 		if( App.Current.Properties.Contains( nameof( TargetIsmFiles ) ) )
 		{
 			var jsonElement = (JsonElement?)App.Current.Properties[nameof( TargetIsmFiles )];
@@ -318,6 +315,10 @@ public partial class CopyFileViewModel : ObservableObject, IProgressBarService
 				break;
 			case nameof( IsDispCopyFilesOnly ):
 				App.Current.Properties[nameof( IsDispCopyFilesOnly )] = IsDispCopyFilesOnly;
+				RefreshTargetFileInformationCollection();
+				break;
+			case nameof(IsHideIgnoreFiles ):
+				App.Current.Properties[nameof( IsHideIgnoreFiles )] = IsHideIgnoreFiles;
 				RefreshTargetFileInformationCollection();
 				break;
 			case nameof( SelectTargetIsmFile ):

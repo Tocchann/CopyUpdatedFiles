@@ -121,7 +121,14 @@
         </GridView>
       </ListView.View>
     </ListView>
-    <CheckBox Grid.Row="4" Margin="0,4" Content="コピー対象ファイルのみ表示する" IsChecked="{Binding IsDispCopyFilesOnly}" />
+    <Grid Grid.Row="4" Margin="0,4">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="*" />
+        <ColumnDefinition Width="*" />
+      </Grid.ColumnDefinitions>
+      <CheckBox Grid.Column="0" Content="無視ファイルは非表示にする" IsChecked="{Binding IsHideIgnoreFiles}" />
+      <CheckBox Grid.Column="1" Content="コピー対象ファイルのみ表示する" IsChecked="{Binding IsDispCopyFilesOnly}" />
+    </Grid>
     <ProgressBar Grid.Row="5" Height="4" Margin="0,4"
                  IsIndeterminate="{Binding IsIndeterminate}" Visibility="{Binding IsProgressBarVisible, Converter={StaticResource BooleanToVisibilityConverter}}"
                  Minimum="{Binding ProgressMin}" Maximum="{Binding ProgressMax}" Value="{Binding ProgressValue}"
