@@ -27,11 +27,10 @@ public partial class CopyFileViewModel : ObservableObject, IProgressBarService
 	public ObservableCollection<TargetInformation> TargetFolderInformationCollection { get; } = new();
 	public ObservableCollection<TargetFileInformation> DispTargetFileInformationCollection { get; } = new();
 
-	[ObservableProperty]
-	TargetInformation? selectTargetFolderInformation;
+	public ObservableCollection<string> TargetIsmFiles { get; } = new();
 
 	[ObservableProperty]
-	string focusFileListPath;
+	TargetInformation? selectTargetFolderInformation;
 
 	[ObservableProperty]
 	bool isProgressBarVisible;
@@ -51,6 +50,72 @@ public partial class CopyFileViewModel : ObservableObject, IProgressBarService
 	[ObservableProperty]
 	bool isDispCopyFilesOnly;
 
+	[ObservableProperty]
+	string? selectTargetIsmFile;
+
+	bool CanExecuteIsmFile() => string.IsNullOrEmpty( SelectTargetIsmFile ) == false;
+	[RelayCommand]
+	void AddIsmFile()
+	{
+		m_logger.LogInformation( System.Reflection.MethodBase.GetCurrentMethod()?.Name );
+		var dlg = new OpenFileDialog();
+		dlg.Filter = "InstallShieldプロジェクト|*.ism|すべてのファイル|*.*";
+		if( dlg.ShowDialog() == true )
+		{
+			if( TargetIsmFiles.Contains( dlg.FileName ) == false )
+			{
+				// 空データを突っ込んでいるかもしれないので削除する
+				TargetIsmFiles.Add( dlg.FileName );
+				App.Current.Properties[nameof( TargetIsmFiles )] = TargetIsmFiles;
+			}
+			else
+			{
+				m_alert.Show( "同じファイルが指定されています。" );
+			}
+		}
+	}
+	[RelayCommand(CanExecute=nameof(CanExecuteIsmFile))]
+	void EditIsmFile()
+	{
+		m_logger.LogInformation( System.Reflection.MethodBase.GetCurrentMethod()?.Name );
+		if( string.IsNullOrEmpty( SelectTargetIsmFile ) )
+		{
+			return;
+		}
+		var dlg = new OpenFileDialog();
+		if( dlg.ShowDialog() == true )
+		{
+			// 違うファイルが選択された場合のみ
+			if( string.CompareOrdinal( SelectTargetIsmFile, dlg.FileName ) != 0 )
+			{
+				if( TargetIsmFiles.Contains( dlg.FileName ) == false )
+				{
+					TargetIsmFiles.Remove( SelectTargetIsmFile );
+					TargetIsmFiles.Add( dlg.FileName );
+					SelectTargetIsmFile = dlg.FileName;
+					App.Current.Properties[nameof( TargetIsmFiles )] = TargetIsmFiles;
+				}
+				else
+				{
+					m_alert.Show( "同じファイルが指定されています。" );
+				}
+			}
+		}
+	}
+	[RelayCommand(CanExecute=nameof(CanExecuteIsmFile))]
+	void DeleteIsmFile()
+	{
+		m_logger.LogInformation( System.Reflection.MethodBase.GetCurrentMethod()?.Name );
+		if( string.IsNullOrEmpty( SelectTargetIsmFile ) == false )
+		{
+			if( m_alert.Show( "選択された InstallShieldプロジェクトファイルを削除します。\nよろしいですか？", IDispAlert.Buttons.YesNo ) != IDispAlert.Result.Yes )
+			{
+				return;
+			}
+			TargetIsmFiles.Remove( SelectTargetIsmFile );
+			App.Current.Properties[nameof( TargetIsmFiles )] = TargetIsmFiles;
+		}
+	}
 	[RelayCommand]
 	void AddFolder()
 	{
@@ -88,10 +153,7 @@ public partial class CopyFileViewModel : ObservableObject, IProgressBarService
 			}
 		}
 	}
-	bool CanExecuteSelectTargetFolderInformation()
-	{
-		return SelectTargetFolderInformation != null;
-	}
+	bool CanExecuteSelectTargetFolderInformation() => SelectTargetFolderInformation != null;
 	[RelayCommand(CanExecute=nameof(CanExecuteSelectTargetFolderInformation))]
 	void RemoveFolder()
 	{
@@ -107,33 +169,7 @@ public partial class CopyFileViewModel : ObservableObject, IProgressBarService
 		}
 	}
 
-	[RelayCommand]
-	void SelectFocusFileListPath()
-	{
-		OpenFileDialog dlg = new OpenFileDialog();
-		dlg.Filter = "すべてのファイル|*.*";
-		dlg.FileName = FocusFileListPath ?? string.Empty;
-		var ownerWindow = Utilities.GetOwnerWindow();
-		if( dlg.ShowDialog( ownerWindow ) != false )
-		{
-			FocusFileListPath = dlg.FileName;
-			App.Current.Properties[nameof(FocusFileListPath )] = FocusFileListPath;
-		}
-	}
-		//targetFilesListFilePath
-
-	//[RelayCommand(CanExecute=nameof(CanExecuteTargetFileAction))]
-	//void CopyToClipboard()
-	//{
-	//	m_logger.LogInformation( System.Reflection.MethodBase.GetCurrentMethod()?.Name );
-	//	// データ形式を決めないといけないよね…テキストで処理することは確定事項だけども…
-	//	m_alert.Show( "工事中...クリップボードへのコピー" );
-	//}
-	bool CanExecuteTargetFileAction()
-	{
-		// 何かしら表示している場合は処理が可能
-		return DispTargetFileInformationCollection.Count > 0;
-	}
+	bool CanExecuteTargetFileAction() => DispTargetFileInformationCollection.Count > 0;
 	[RelayCommand]
 	async Task CheckTargetFiles()
 	{
@@ -148,7 +184,7 @@ public partial class CopyFileViewModel : ObservableObject, IProgressBarService
 			}
 			using( var checkTargetFiles = new CheckTargetFiles( this, m_tokenSrc.Token ) )
 			{
-				await checkTargetFiles.ExecuteAsync( TargetFolderInformationCollection, FocusFileListPath );
+				await checkTargetFiles.ExecuteAsync( TargetFolderInformationCollection, TargetIsmFiles );
 				// データを構築し終わったらコピーする(ここはメインスレッドで良い)
 				m_targetFileInformationCollection = checkTargetFiles.TargetFileInfos;
 			}
@@ -221,7 +257,6 @@ public partial class CopyFileViewModel : ObservableObject, IProgressBarService
 				}
 			}
 		}
-		//CopyToClipboardCommand.NotifyCanExecuteChanged();
 		CopyTargetFilesCommand?.NotifyCanExecuteChanged();
 	}
 
@@ -230,6 +265,7 @@ public partial class CopyFileViewModel : ObservableObject, IProgressBarService
 		m_logger = logger;
 		m_alert = alart;
 		m_progressValueLocker = new();
+
 		// ここで読み込むときだけ状況が異なる
 		if( App.Current.Properties.Contains( nameof( TargetFolderInformationCollection ) ) )
 		{
@@ -249,7 +285,26 @@ public partial class CopyFileViewModel : ObservableObject, IProgressBarService
 		}
 		// ここは直接boolが格納されているので、そのまま変換する
 		IsDispCopyFilesOnly = ((JsonElement?)App.Current.Properties[nameof( IsDispCopyFilesOnly )])?.GetBoolean() ?? false;
-		FocusFileListPath = ((JsonElement?)App.Current.Properties[nameof( FocusFileListPath )])?.GetString() ?? string.Empty;
+		if( App.Current.Properties.Contains( nameof( TargetIsmFiles ) ) )
+		{
+			var jsonElement = (JsonElement?)App.Current.Properties[nameof( TargetIsmFiles )];
+			if( jsonElement != null )
+			{
+				var ismFiles = JsonSerializer.Deserialize<string[]>( jsonElement.Value );
+				if( ismFiles != null )
+				{
+					foreach( var file in ismFiles )
+					{
+						TargetIsmFiles.Add( file );
+					}
+				}
+			}
+		}
+		// 無くなったので削除
+		if( App.Current.Properties.Contains( "FocusFileListPath" ) )
+		{
+			App.Current.Properties.Remove( "FocusFileListPath" );
+		}
 
 		RefreshTargetFileInformationCollection();
 		m_tokenSrc = new();
@@ -265,14 +320,9 @@ public partial class CopyFileViewModel : ObservableObject, IProgressBarService
 				App.Current.Properties[nameof( IsDispCopyFilesOnly )] = IsDispCopyFilesOnly;
 				RefreshTargetFileInformationCollection();
 				break;
-			case nameof( FocusFileListPath ):
-				if( m_targetFileInformationCollection != null && m_targetFileInformationCollection.Count != 0 )
-				{
-					if( m_alert.Show( "対象ファイルを確認しなおしますか？", IDispAlert.Buttons.YesNo ) == IDispAlert.Result.Yes )
-					{
-						CheckTargetFilesCommand.Execute(null);
-					}
-				}
+			case nameof( SelectTargetIsmFile ):
+				EditIsmFileCommand.NotifyCanExecuteChanged();
+				DeleteIsmFileCommand.NotifyCanExecuteChanged();
 				break;
 			}
 		};

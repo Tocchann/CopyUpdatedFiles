@@ -12,6 +12,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
+using System.Xml;
 
 namespace CopyFiles.Services;
 
@@ -35,7 +36,7 @@ public class CheckTargetFiles : IDisposable
 		ProgressBarService.IsProgressBarVisible = false;
 	}
 
-	public async Task ExecuteAsync( IEnumerable<TargetInformation> targetFolderInformations, string? focusFileListPath )
+	public async Task ExecuteAsync( IEnumerable<TargetInformation> targetFolderInformations, IEnumerable<string> targetIsmFiles )
 	{
 		var blockOptions = new ExecutionDataflowBlockOptions
 		{
@@ -49,15 +50,7 @@ public class CheckTargetFiles : IDisposable
 		};
 
 		// 対象ファイルを絞り込みするためのパスリストをセットする
-		var readFocusFileBlock = new ActionBlock<string>(
-			async filePath =>
-			{
-				var fileList = await File.ReadAllLinesAsync( filePath );
-				foreach( var file in fileList )
-				{
-					m_focusFileListPath.Add( file );
-				}
-			}, blockOptions );
+		var readTargetFileFromIsmBlock = new ActionBlock<string>( ReadTargetFileFromIsm, blockOptions );
 	
 
 		// 検索対象フォルダを列挙してファイル一覧をリストアップする
@@ -73,12 +66,12 @@ public class CheckTargetFiles : IDisposable
 		checkTargetFileStatusBlock.LinkTo( pushTargetFileInfoBlock, linkOptions );
 
 		// フォーカスリストの読み込み
-		if( File.Exists( focusFileListPath ) )
+		foreach( var ismFile in targetIsmFiles )
 		{
-			await readFocusFileBlock.SendAsync( focusFileListPath );
+			readTargetFileFromIsmBlock.Post( ismFile );
 		}
-		readFocusFileBlock.Complete();
-		await readFocusFileBlock.Completion;
+		readTargetFileFromIsmBlock.Complete();
+		await readTargetFileFromIsmBlock.Completion;
 
 		// 対象ファイルの列挙
 		foreach( var folderInfo in targetFolderInformations )
@@ -101,6 +94,106 @@ public class CheckTargetFiles : IDisposable
 		}
 		checkTargetFileStatusBlock.Complete();
 		await pushTargetFileInfoBlock.Completion;
+	}
+
+	private void ReadTargetFileFromIsm( string ismFile )
+	{
+		// ismFile を読み取って、対象ファイル一覧をセットする
+		// XmlDocument で読み取ってくれないのは
+		var ism = new XmlDocument();
+		ism.Load( ismFile );
+		// ISPathVariable をリストアップしてパス変換テーブルを用意する
+		var pathVariable = ReadPathVariable( ismFile, ism );
+		// テーブルリストを取り出す
+		var nodes = ism.SelectNodes( "//col[text()='ISBuildSourcePath']" );
+		if( nodes == null )
+		{
+			return;
+		}
+		// 実際のテーブルをサーチしながらファイル一覧を取り込んでいく
+		foreach( XmlElement col in nodes )
+		{
+			// 構造上絶対にある
+			var tableName = col.ParentNode?.Attributes?["name"]?.Value; // nullable をチェックしなくてよい
+			int index = GetISBuildSourcePathIndex( ism, tableName );
+			if( index != -1 )
+			{
+				var rows = ism.SelectNodes( $"//table[@name='{tableName}']/row" );
+				if( rows != null )
+				{
+					foreach( XmlElement row in rows )
+					{
+						var sourcePath = row.ChildNodes[index]?.InnerText;
+						if( !string.IsNullOrEmpty( sourcePath ) )
+						{
+							// 対象パスを取得したので、パス変換テーブルを通して物理パスにする
+							foreach( var kv in pathVariable )
+							{
+								sourcePath = sourcePath.Replace( kv.Key, kv.Value );
+							}
+							if( !sourcePath.Contains( '<' ) )
+							{
+								m_focusFileListPath.Add( sourcePath );
+							}
+						}
+					}
+				}
+			}
+		}
+
+		//var fileList = await File.ReadAllLinesAsync( filePath );
+		//foreach( var file in fileList )
+		//{
+		//	m_focusFileListPath.Add( file );
+		//}
+	}
+
+	private static int GetISBuildSourcePathIndex( XmlDocument ism, string? tableName )
+	{
+		if( string.IsNullOrEmpty( tableName ) )
+		{
+			return -1;
+		}
+		var cols = ism.SelectNodes( $"//table[@name='{tableName}']/col" );
+		if( cols == null )
+		{
+			return -1;
+		}
+		for( int index = 0 ; index < cols.Count ; index++ )
+		{
+			if( cols[index]?.InnerText == "ISBuildSourcePath" )
+			{
+				return index;
+			}
+		}
+		return -1;
+	}
+
+	private static Dictionary<string, string> ReadPathVariable( string ismFile, XmlDocument ism )
+	{
+		var pathVariable = new Dictionary<string, string>();
+		var isPathVariables = ism.SelectNodes( "//table[@name='ISPathVariable']/row" );
+		if( isPathVariables != null )
+		{
+			foreach( XmlElement row in isPathVariables )
+			{
+				if( row.ChildNodes.Count >= 2 )
+				{
+					var key = row.ChildNodes[0]?.InnerText;
+					var value = row.ChildNodes[1]?.InnerText;
+					if( key == "ISProjectFolder" )
+					{
+						value = Path.GetDirectoryName( ismFile );
+					}
+					if( string.IsNullOrEmpty( key ) == false && string.IsNullOrEmpty( value ) == false )
+					{
+						// キーはあとで単純変換できるようにするために<>をつけておく
+						pathVariable["<" + key + ">"] = value;
+					}
+				}
+			}
+		}
+		return pathVariable;
 	}
 
 	private IEnumerable<TargetFileInformation> ListupTargetFiles( TargetInformation information )
@@ -235,5 +328,4 @@ public class CheckTargetFiles : IDisposable
 	}
 	private int interlockedProgressValue;
 	private HashSet<string> m_focusFileListPath;
-
 }
