@@ -255,6 +255,29 @@ public partial class CopyFileViewModel : ObservableObject, IProgressBarService
 		}
 		CopyTargetFilesCommand?.NotifyCanExecuteChanged();
 	}
+	protected override void OnPropertyChanged( PropertyChangedEventArgs e )
+	{
+		switch( e.PropertyName )
+		{
+		case nameof( SelectTargetFolderInformation ):
+			EditFolderCommand.NotifyCanExecuteChanged();
+			RemoveFolderCommand.NotifyCanExecuteChanged();
+			break;
+		case nameof( IsDispCopyFilesOnly ):
+			App.Current.Properties[nameof( IsDispCopyFilesOnly )] = IsDispCopyFilesOnly;
+			RefreshTargetFileInformationCollection();
+			break;
+		case nameof( IsHideIgnoreFiles ):
+			App.Current.Properties[nameof( IsHideIgnoreFiles )] = IsHideIgnoreFiles;
+			RefreshTargetFileInformationCollection();
+			break;
+		case nameof( SelectTargetIsmFile ):
+			EditIsmFileCommand.NotifyCanExecuteChanged();
+			DeleteIsmFileCommand.NotifyCanExecuteChanged();
+			break;
+		}
+		base.OnPropertyChanged( e );
+	}
 
 	public CopyFileViewModel( ILogger<CopyFileViewModel> logger, IDispAlert alart )
 	{
@@ -305,29 +328,8 @@ public partial class CopyFileViewModel : ObservableObject, IProgressBarService
 
 		RefreshTargetFileInformationCollection();
 		m_tokenSrc = new();
-		PropertyChanged += ( s, e ) =>
-		{
-			switch( e.PropertyName )
-			{
-			case nameof( SelectTargetFolderInformation ):
-				EditFolderCommand.NotifyCanExecuteChanged();
-				RemoveFolderCommand.NotifyCanExecuteChanged();
-				break;
-			case nameof( IsDispCopyFilesOnly ):
-				App.Current.Properties[nameof( IsDispCopyFilesOnly )] = IsDispCopyFilesOnly;
-				RefreshTargetFileInformationCollection();
-				break;
-			case nameof(IsHideIgnoreFiles ):
-				App.Current.Properties[nameof( IsHideIgnoreFiles )] = IsHideIgnoreFiles;
-				RefreshTargetFileInformationCollection();
-				break;
-			case nameof( SelectTargetIsmFile ):
-				EditIsmFileCommand.NotifyCanExecuteChanged();
-				DeleteIsmFileCommand.NotifyCanExecuteChanged();
-				break;
-			}
-		};
 	}
+
 	[DesignOnly( true )]
 #pragma warning disable CS8618 // null 非許容のフィールドには、コンストラクターの終了時に null 以外の値が入っていなければなりません。Null 許容として宣言することをご検討ください。
 	public CopyFileViewModel()
