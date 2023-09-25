@@ -31,6 +31,9 @@ public partial class TargetFileInformation : TargetInformation
 	[ObservableProperty]
 	Version? destinationVersion;
 
+	[ObservableProperty]
+	bool isCheckTarget;
+
 	public bool NeedCopy
 	{
 		get

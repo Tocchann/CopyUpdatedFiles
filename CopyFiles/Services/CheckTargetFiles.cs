@@ -251,6 +251,8 @@ public class CheckTargetFiles : IDisposable
 				information.Status = TargetStatus.NotExist;
 			}
 		}
+		// デフォルトはコピー対象ファイルすべて
+		information.IsCheckTarget = information.NeedCopy;
 		return information;
 	}
 

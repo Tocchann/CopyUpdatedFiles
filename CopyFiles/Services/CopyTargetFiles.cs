@@ -57,22 +57,28 @@ public class CopyTargetFiles : IDisposable
 	{
 		// 非同期なカウントアップが安全にできるようにしておく
 		ProgressBarService.ProgressValue = Interlocked.Increment( ref interlockedProgressValue );
-		// 無視する場合はスキップ
-		if( !information.Ignore )
+		// デバッグするときに便利なので全部分けておく
+		if( information.Ignore )
 		{
-			// まだコピーされていない場合は、転送先のフォルダがないかもしれないので作成する
-			if( information.Status == TargetStatus.NotExist )
-			{
-				var dstDir = Path.GetDirectoryName( information.Destination );
-				Debug.Assert( dstDir != null ); //	フルパスでセットされているのでnullになることはない
-				Directory.CreateDirectory( dstDir );
-			}
-			// コピーする必要がある場合のみコピーすればよい(同じファイルはコピー不要)
-			if( information.NeedCopy )
-			{
-				File.Copy( information.Source, information.Destination, true );
-			}
+			return;
 		}
+		if( information.IsCheckTarget == false )
+		{
+			return;
+		}
+		// 本来コピーが必要な場合は、IsCheckTarget で最終的なコピー条件を判定することにした
+		//if( information.NeedCopy == false )
+		//{
+		//	return;
+		//}
+		// まだコピーされていない場合は、転送先のフォルダがないかもしれないので作成する
+		if( information.Status == TargetStatus.NotExist )
+		{
+			var dstDir = Path.GetDirectoryName( information.Destination );
+			Debug.Assert( dstDir != null ); //	フルパスでセットされているのでnullになることはない
+			Directory.CreateDirectory( dstDir );
+		}
+		File.Copy( information.Source, information.Destination, true );
 	}
 
 	volatile private int interlockedProgressValue;

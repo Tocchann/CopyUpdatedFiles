@@ -112,7 +112,13 @@
     <ListView Grid.Row="3" Margin="0,4" ItemsSource="{Binding DispTargetFileInformationCollection}" d:ItemsSource="{d:SampleData ItemCount=3}">
       <ListView.View>
         <GridView>
-          <GridViewColumn Header="ステータス" DisplayMemberBinding="{Binding Status}" />
+          <GridViewColumn Header="ステータス">
+            <GridViewColumn.CellTemplate>
+              <DataTemplate>
+                <CheckBox Content="{Binding Status}" d:IsChecked="True" />
+              </DataTemplate>
+            </GridViewColumn.CellTemplate>
+          </GridViewColumn>
           <GridViewColumn Header="コピー元" DisplayMemberBinding="{Binding Source}" />
           <GridViewColumn Header="コピー元バージョン" DisplayMemberBinding="{Binding SourceVersion}" />
           <GridViewColumn Header="コピー先" DisplayMemberBinding="{Binding Destination}" />

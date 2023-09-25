@@ -244,6 +244,7 @@ public partial class CopyFileViewModel : ObservableObject, IProgressBarService
 			{
 				collection = collection.Where( info => info.Ignore == false );
 			}
+			// 表示上のコピー対象はNeedCopyで判断する最終的なコピー対象から除外できるように、実際のコピーは手動でセットすることにした
 			if( IsDispCopyFilesOnly )
 			{
 				collection = collection.Where( info => info.NeedCopy );
