@@ -108,56 +108,31 @@ public class CheckTargetFiles : IDisposable
 
 	private IEnumerable<string> ReadTargetFileFromIsm( string ismFile )
 	{
-		var result = IsmFile.ReadSourceFile( ismFile );
-		return result;
-		//// ismFile を読み取って、対象ファイル一覧をセットする
-		//// XmlDocument で読み取ってくれないのは
-		//var ism = new XmlDocument();
-		//ism.Load( ismFile );
-		//// ISPathVariable をリストアップしてパス変換テーブルを用意する
-		//var pathVariable = ReadPathVariable( ismFile, ism );
-		//// テーブルリストを取り出す
-		//var nodes = ism.SelectNodes( "//col[text()='ISBuildSourcePath']" );
-		//if( nodes == null )
-		//{
-		//	return;
-		//}
-		//// 実際のテーブルをサーチしながらファイル一覧を取り込んでいく
-		//foreach( XmlElement col in nodes )
-		//{
-		//	// 構造上絶対にある
-		//	var tableName = col.ParentNode?.Attributes?["name"]?.Value; // nullable をチェックしなくてよい
-		//	int index = GetISBuildSourcePathIndex( ism, tableName );
-		//	if( index != -1 )
-		//	{
-		//		var rows = ism.SelectNodes( $"//table[@name='{tableName}']/row" );
-		//		if( rows != null )
-		//		{
-		//			foreach( XmlElement row in rows )
-		//			{
-		//				var sourcePath = row.ChildNodes[index]?.InnerText;
-		//				if( !string.IsNullOrEmpty( sourcePath ) )
-		//				{
-		//					// 対象パスを取得したので、パス変換テーブルを通して物理パスにする
-		//					foreach( var kv in pathVariable )
-		//					{
-		//						sourcePath = sourcePath.Replace( kv.Key, kv.Value );
-		//					}
-		//					if( !sourcePath.Contains( '<' ) )
-		//					{
-		//						m_focusFileListPath.Add( sourcePath );
-		//					}
-		//				}
-		//			}
-		//		}
-		//	}
-		//}
+		// XMLファイルじゃない場合はそのままファイルパスを返すだけでよい
+		if( IsXmlFile( ismFile ) )
+		{
+			var result = IsmFile.ReadSourceFile( ismFile );
+			return result;
+		}
+		else
+		{
+			var result = new string[] { ismFile };
+			return result;
+		}
+	}
 
-		//var fileList = await File.ReadAllLinesAsync( filePath );
-		//foreach( var file in fileList )
-		//{
-		//	m_focusFileListPath.Add( file );
-		//}
+	private bool IsXmlFile( string ismFile )
+	{
+		try
+		{
+			var doc = new XmlDocument();
+			doc.Load( ismFile );
+			return true;
+		}
+		catch
+		{
+		}
+		return false;
 	}
 
 	private IEnumerable<TargetFileInformation> ListupTargetFiles( TargetInformation information )

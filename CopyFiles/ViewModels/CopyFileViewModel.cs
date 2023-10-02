@@ -62,7 +62,7 @@ public partial class CopyFileViewModel : ObservableObject, IProgressBarService
 	{
 		m_logger.LogInformation( System.Reflection.MethodBase.GetCurrentMethod()?.Name );
 		var dlg = new OpenFileDialog();
-		dlg.Filter = "InstallShieldプロジェクト|*.ism|すべてのファイル|*.*";
+		dlg.Filter = "InstallShieldプロジェクト|*.ism|実行ファイル|*.exe;*.dll|すべてのファイル|*.*";
 		if( dlg.ShowDialog() == true )
 		{
 			if( TargetIsmFiles.Contains( dlg.FileName ) == false )

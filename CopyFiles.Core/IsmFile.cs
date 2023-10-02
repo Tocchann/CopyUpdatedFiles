@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -26,6 +27,7 @@ namespace CopyFiles.Core
 				int index = GetISBuildSourcePathIndex( ism, tableName );
 				if( index != -1 )
 				{
+					Trace.WriteLine( $"//table[@name='{tableName}']" );
 					var rows = ism.SelectNodes( $"//table[@name='{tableName}']/row" );
 					if( rows != null )
 					{
@@ -42,6 +44,7 @@ namespace CopyFiles.Core
 								if( !sourcePath.Contains( '<' ) )
 								{
 									result.Add( sourcePath );
+									Trace.WriteLine( $"Add:{sourcePath}" );
 								}
 							}
 						}

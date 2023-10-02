@@ -36,10 +36,10 @@ public partial class AppendFolderViewModel : ObservableValidator
 	public static ValidationResult? ValidateDestination( string newValue, ValidationContext context )
 	{
 		var vm = (AppendFolderViewModel)context.ObjectInstance;
-		if( !vm.IsDetectExistTarget( info => info.Destination, newValue ) )
-		{
-			return new( "同じコピー先がすでに存在します" );
-		}
+		//if( !vm.IsDetectExistTarget( info => info.Destination, newValue ) )
+		//{
+		//	return new( "同じコピー先がすでに存在します" );
+		//}
 		return ValidationResult.Success;
 	}
 	[ObservableProperty]
@@ -124,11 +124,11 @@ public partial class AppendFolderViewModel : ObservableValidator
 			m_alert.Show( "コピー先が指定されていません。" );
 			return;
 		}
-		if( !IsDetectExistTarget( info => info.Destination, Destination ) )
-		{
-			m_alert.Show( "コピー先フォルダが重複しています" );
-			return;
-		}
+		//if( !IsDetectExistTarget( info => info.Destination, Destination ) )
+		//{
+		//	m_alert.Show( "コピー先フォルダが重複しています" );
+		//	return;
+		//}
 		TargetFolderInformation = new()
 		{
 			Source = Source,
