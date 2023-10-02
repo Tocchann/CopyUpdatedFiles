@@ -11,6 +11,7 @@ public class Tests
 	[SetUp]
 	public void Setup()
 	{
+		Trace.Listeners.Add( new ConsoleTraceListener() );
 	}
 	[Test]
 	public void CheckFilePath()
