@@ -14,12 +14,23 @@ namespace CopyFiles.Core;
 
 public static class PeFileService
 {
+	/// <summary>
+	/// ファイルがPE形式のファイルか？
+	/// </summary>
+	/// <param name="fileImage">ファイルイメージ(オンメモリチェック)</param>
+	/// <returns>PEファイル形式かどうかの判定結果</returns>
 	public static bool IsValidPE( byte[] fileImage )
 	{
 		var pos = GetPeSignaturePos( fileImage );
 		return pos != -1;
 	}
-	// ヘッダーの隙間部分はゴミがあるのでスキップして実エリアのみ判定する
+	/// <summary>
+	/// PEファイルのSECTIONデータエリア内のハッシュ対象領域(にあたるもの)を取り出す
+	/// 理想的には、隙間部分をきれいに穴埋めしたいんだけどそこまではやらない
+	/// </summary>
+	/// <param name="fileImage">ファイルイメージ</param>
+	/// <param name="count">一致範囲のバイト数</param>
+	/// <returns>一致範囲の確認スタート位置</returns>
 	public static int CalcHashArea( byte[] fileImage, out int count )
 	{
 		int offset = 0;
@@ -80,6 +91,59 @@ public static class PeFileService
 		}
 		count = maxPos - offset;
 		return offset;
+	}
+	/// <summary>
+	/// 署名されているか？
+	/// </summary>
+	/// <param name="fileImage">ファイルイメージ(オンメモリチェック)</param>
+	/// <returns>署名を持っているかの判定結果。PEファイルではない場合も署名は持っていないと判断するので要注意</returns>
+	public static bool IsSetSignatgure( byte[] fileImage )
+	{
+		if( !IsValidPE( fileImage ) )
+		{
+			return false;
+		}
+		// 実際のexe/dll ならセクションデータが存在するのでヘッダーサイズより大きなエリアになる
+		int minExeSize = Marshal.SizeOf<IMAGE_DOS_HEADER>() +
+			sizeof( uint ) +
+			Marshal.SizeOf<IMAGE_FILE_HEADER>() +
+			Marshal.SizeOf<IMAGE_OPTIONAL_HEADER32>() +
+			Marshal.SizeOf<IMAGE_DATA_DIRECTORY>() * Literals.IMAGE_NUMBEROF_DIRECTORY_ENTRIES +
+			0;//Marshal.SizeOf<IMAGE_SECTION_HEADER>(); // 少なくとも１つ以上のセクションデータがあるはず
+													// ヘッダーだけしかないということはあり得ない(ここは簡易チェックでよい)
+		if( minExeSize >= fileImage.Length )
+		{
+			return false;
+		}
+		// PEファイルアクセスはC形式構造体へのアクセスが頻発するので
+		// IntPtrなバッファにコピーしていろいろ処理する
+		var moduleBuffer = Marshal.AllocHGlobal( fileImage.Length );
+		Marshal.Copy( fileImage, 0, moduleBuffer, fileImage.Length );
+		var imageDosHeader = Marshal.PtrToStructure<IMAGE_DOS_HEADER>( moduleBuffer );
+		// 念のための再チェック(IsValidPEではじいている)
+		Debug.Assert( imageDosHeader.e_magic == Literals.IMAGE_DOS_SIGNATURE );
+		var signature = Marshal.ReadInt32( moduleBuffer, imageDosHeader.e_lfanew );
+		Debug.Assert( signature == Literals.IMAGE_NT_SIGNATURE );
+		int headerOffset = imageDosHeader.e_lfanew + sizeof( uint ); //	シグネチャの後ろを指す
+		var imageFileHeader = Marshal.PtrToStructure<IMAGE_FILE_HEADER>( moduleBuffer + headerOffset );
+
+		headerOffset += Marshal.SizeOf<IMAGE_FILE_HEADER>();
+		if( imageFileHeader.Machine == IMAGE_FILE_MACHINE.I386 )
+		{
+			headerOffset += Marshal.SizeOf<IMAGE_OPTIONAL_HEADER32>();
+		}
+		else if( imageFileHeader.Machine == IMAGE_FILE_MACHINE.AMD64 )
+		{
+			headerOffset += Marshal.SizeOf<IMAGE_OPTIONAL_HEADER64>();
+		}
+		else
+		{
+			throw new NotImplementedException();	//	x86/x64以外は考慮しない
+		}
+		var dataDirectorySize = Marshal.SizeOf<IMAGE_DATA_DIRECTORY>();
+		var signaturePos = dataDirectorySize * (int)IMAGE_DIRECTORY_ENTRY.SECURITY;
+		var dataDirectory = Marshal.PtrToStructure<IMAGE_DATA_DIRECTORY>( moduleBuffer + headerOffset + signaturePos );
+		return dataDirectory.VirtualAddress != 0;
 	}
 
 	private static int GetPeSignaturePos( byte[] fileImage )
