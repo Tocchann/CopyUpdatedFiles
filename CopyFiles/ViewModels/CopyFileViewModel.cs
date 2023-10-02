@@ -27,6 +27,8 @@ public partial class CopyFileViewModel : ObservableObject, IProgressBarService
 	public ObservableCollection<TargetInformation> TargetFolderInformationCollection { get; } = new();
 	public ObservableCollection<TargetFileInformation> DispTargetFileInformationCollection { get; } = new();
 
+	public ObservableCollection<TargetInformation> UnsignedFolderCollection { get; } = new();
+
 	public ObservableCollection<string> TargetIsmFiles { get; } = new();
 
 	[ObservableProperty]
@@ -55,6 +57,10 @@ public partial class CopyFileViewModel : ObservableObject, IProgressBarService
 
 	[ObservableProperty]
 	string? selectTargetIsmFile;
+
+	[ObservableProperty]
+	TargetInformation? selectUnsignedFolder;
+
 
 	bool CanExecuteIsmFile() => string.IsNullOrEmpty( SelectTargetIsmFile ) == false;
 	[RelayCommand]
@@ -119,6 +125,7 @@ public partial class CopyFileViewModel : ObservableObject, IProgressBarService
 			App.Current.Properties[nameof( TargetIsmFiles )] = TargetIsmFiles;
 		}
 	}
+	bool CanExecuteSelectTargetFolderInformation() => SelectTargetFolderInformation != null;
 	[RelayCommand]
 	void AddFolder()
 	{
@@ -156,7 +163,6 @@ public partial class CopyFileViewModel : ObservableObject, IProgressBarService
 			}
 		}
 	}
-	bool CanExecuteSelectTargetFolderInformation() => SelectTargetFolderInformation != null;
 	[RelayCommand(CanExecute=nameof(CanExecuteSelectTargetFolderInformation))]
 	void RemoveFolder()
 	{
@@ -231,7 +237,100 @@ public partial class CopyFileViewModel : ObservableObject, IProgressBarService
 		}
 
 	}
+	bool CanExecuteUnsignedFolderAction() => SelectUnsignedFolder != null;
+	[RelayCommand]
+	void AddUnsignedFolder()
+	{
+		m_logger.LogInformation( System.Reflection.MethodBase.GetCurrentMethod()?.Name );
+		var dlg = App.Current.GetService<IAppendFolderDialog>();
+		if( dlg != null )
+		{
+			dlg.ViewModel.DialogTitle = "非署名ファイルのコピー対象フォルダの追加";
+			dlg.ViewModel.TargetFolderInformationCollection = UnsignedFolderCollection;
+			if( dlg.ShowWindow() != false )
+			{
+				UnsignedFolderCollection.Add( dlg.ViewModel.TargetFolderInformation );
+				App.Current.Properties[nameof( UnsignedFolderCollection )] = UnsignedFolderCollection.ToArray();
+			}
+		}
+	}
+	[RelayCommand( CanExecute = nameof( CanExecuteUnsignedFolderAction ) )]
+	void EditUnsignedFolder()
+	{
+		m_logger.LogInformation( System.Reflection.MethodBase.GetCurrentMethod()?.Name );
+		var dlg = App.Current.GetService<IAppendFolderDialog>();
+		if( dlg != null && SelectUnsignedFolder != null )
+		{
+			dlg.ViewModel.DialogTitle = "非署名ファイルのコピー対象フォルダの編集";
+			dlg.ViewModel.TargetFolderInformation = SelectUnsignedFolder;
+			dlg.ViewModel.Source = SelectUnsignedFolder.Source;
+			dlg.ViewModel.Destination = SelectUnsignedFolder.Destination;
+			dlg.ViewModel.TargetFolderInformationCollection = UnsignedFolderCollection;
+			if( dlg.ShowWindow() != false )
+			{
+				SelectUnsignedFolder.Source = dlg.ViewModel.Source;
+				SelectUnsignedFolder.Destination = dlg.ViewModel.Destination;
+				// 実際は、コレクションデータも変わるのでそのまま書き込んでおけばよい
+				App.Current.Properties[nameof( UnsignedFolderCollection )] = UnsignedFolderCollection.ToArray();
+			}
+		}
+	}
+	[RelayCommand( CanExecute = nameof( CanExecuteUnsignedFolderAction ) )]
+	void RemoveUnsignedFolder()
+	{
+		m_logger.LogInformation( System.Reflection.MethodBase.GetCurrentMethod()?.Name );
+		if( SelectUnsignedFolder != null )
+		{
+			if( m_alert.Show( "選択された非署名ファイルのコピー対象フォルダを削除します。\nよろしいですか？", IDispAlert.Buttons.YesNo ) != IDispAlert.Result.Yes )
+			{
+				return;
+			}
+			UnsignedFolderCollection.Remove( SelectUnsignedFolder );
+			App.Current.Properties[nameof( UnsignedFolderCollection )] = UnsignedFolderCollection.ToArray();
+		}
+	}
 
+	[RelayCommand]
+	async Task CopyUnsignedFiles()
+	{
+		m_logger.LogInformation( System.Reflection.MethodBase.GetCurrentMethod()?.Name );
+		// インストーラとして参照するファイル一覧に余りがないことを確認する
+		if( m_targetFileInformationCollection == null || m_targetFileInformationCollection.Count == 0 )
+		{
+			m_alert.Show( "先に確認処理を行ってください。" );
+			return;
+		}
+		// コピー処理が終わっていない場合署名送付作業が二度手間になるのでコピーしない
+		if( m_targetFileInformationCollection.Any( info => info.Ignore == false && info.NeedCopy ) )
+		{
+			m_alert.Show( "コピーされていないファイルがあります。" );
+			return;
+		}
+		if( UnsignedFolderCollection.Count == 0 )
+		{
+			m_alert.Show( "処理対象フォルダが確定していません" );
+		}
+		if( !IsProgressBarVisible )
+		{
+			if( !m_tokenSrc.TryReset() )
+			{
+				m_alert.Show( "キャンセル処理が初期化できません。もう一度試すか、一度アプリを終了してください。" );
+			}
+			if( m_targetFileInformationCollection != null && m_targetFileInformationCollection.Count != 0 )
+			{
+				using( var copyTargetFiles = new CopyUnsignedFiles( this, m_tokenSrc.Token ) )
+				{
+					await copyTargetFiles.ExecuteAsync( m_targetFileInformationCollection, UnsignedFolderCollection );
+				}
+			}
+			// 本当は再チェックになるけどここではやらない
+			m_alert.Show( "コピーが終わりました。" );
+		}
+		else
+		{
+			m_tokenSrc.Cancel();
+		}
+	}
 
 	private void RefreshTargetFileInformationCollection()
 	{
@@ -276,6 +375,10 @@ public partial class CopyFileViewModel : ObservableObject, IProgressBarService
 			EditIsmFileCommand.NotifyCanExecuteChanged();
 			DeleteIsmFileCommand.NotifyCanExecuteChanged();
 			break;
+		case nameof( SelectUnsignedFolder ):
+			EditUnsignedFolderCommand.NotifyCanExecuteChanged();
+			RemoveUnsignedFolderCommand.NotifyCanExecuteChanged();
+			break;
 		}
 		base.OnPropertyChanged( e );
 	}
@@ -286,23 +389,8 @@ public partial class CopyFileViewModel : ObservableObject, IProgressBarService
 		m_alert = alart;
 		m_progressValueLocker = new();
 
-		// ここで読み込むときだけ状況が異なる
-		if( App.Current.Properties.Contains( nameof( TargetFolderInformationCollection ) ) )
-		{
-			// 読み取った時は、JsonElementになっているので変換してやる必要がある(本当は型を見て処理するほうがいいけどここでは省略)
-			var jsonElement = (JsonElement?)App.Current.Properties[nameof( TargetFolderInformationCollection )];
-			if( jsonElement != null )
-			{
-				var folderInfos = JsonSerializer.Deserialize<TargetInformation[]>( jsonElement.Value );
-				if( folderInfos != null )
-				{
-					foreach( var info in folderInfos )
-					{
-						TargetFolderInformationCollection.Add( info );
-					}
-				}
-			}
-		}
+		LoadCollection( TargetFolderInformationCollection, nameof( TargetFolderInformationCollection ) );
+		LoadCollection( UnsignedFolderCollection, nameof( UnsignedFolderCollection ) );
 		// ここは直接boolが格納されているので、そのまま変換する
 		IsDispCopyFilesOnly = ((JsonElement?)App.Current.Properties[nameof( IsDispCopyFilesOnly )])?.GetBoolean() ?? false;
 		IsHideIgnoreFiles = ((JsonElement?)App.Current.Properties[nameof( IsHideIgnoreFiles )])?.GetBoolean() ?? false;
@@ -326,9 +414,33 @@ public partial class CopyFileViewModel : ObservableObject, IProgressBarService
 		{
 			App.Current.Properties.Remove( "FocusFileListPath" );
 		}
-
+		if( App.Current.Properties.Contains( "UnsignedFolder" ) )
+		{
+			App.Current.Properties.Remove( "UnsignedFolder" );
+		}
 		RefreshTargetFileInformationCollection();
 		m_tokenSrc = new();
+	}
+
+	private void LoadCollection( ObservableCollection<TargetInformation> collection, string propertyName )
+	{
+		collection.Clear();
+		if( App.Current.Properties.Contains( propertyName ) )
+		{
+			// 読み取った時は、JsonElementになっているので変換してやる必要がある(本当は型を見て処理するほうがいいけどここでは省略)
+			var jsonElement = (JsonElement?)App.Current.Properties[propertyName];
+			if( jsonElement != null )
+			{
+				var folderInfos = JsonSerializer.Deserialize<TargetInformation[]>( jsonElement.Value );
+				if( folderInfos != null )
+				{
+					foreach( var info in folderInfos )
+					{
+						collection.Add( info );
+					}
+				}
+			}
+		}
 	}
 
 	[DesignOnly( true )]

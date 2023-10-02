@@ -22,6 +22,8 @@
       <RowDefinition Height="auto" />
       <RowDefinition Height="auto" />
       <RowDefinition Height="auto" />
+      <RowDefinition Height="*" />
+      <RowDefinition Height="auto" />
     </Grid.RowDefinitions>
     <Grid Grid.Row="0">
       <Grid.RowDefinitions>
@@ -76,49 +78,11 @@
         <Button Grid.Column="5" Content="対象フォルダの削除" Command="{Binding RemoveFolderCommand}" />
       </Grid>
     </Grid>
-    <!--<ListView Grid.Row="1" Margin="0,4" ItemsSource="{Binding TargetIsmFiles}" d:ItemsSource="{d:SampleData ItemCount=2}">
-      <ListView.View>
-        <GridView>
-          <GridViewColumn Header="Ism File" DisplayMemberBinding="{Binding}">
-            <GridViewColumn.CellTemplate>
-              <DataTemplate>
-                <Grid>
-                  <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="auto" />
-                  </Grid.ColumnDefinitions>
-                  <TextBlock Grid.Column="0" Text="{Binding}" />
-                  <Button Grid.Column="1" Content="..." Padding="2,0" />
-                </Grid>
-              </DataTemplate>
-            </GridViewColumn.CellTemplate>
-          </GridViewColumn>
-        </GridView>
-      </ListView.View>
-    </ListView>-->
-    <!--<Grid Grid.Row="2" Margin="0,4">
-      <Grid.ColumnDefinitions>
-        <ColumnDefinition Width="auto" />
-        <ColumnDefinition Width="*" />
-        <ColumnDefinition Width="4" />
-        <ColumnDefinition Width="auto" />
-      </Grid.ColumnDefinitions>
-
-      <Label Grid.Column="0" Content="対象ファイルリスト" />
-      <TextBox Grid.Column="1" Text="{Binding FocusFileListPath}" />
-      <Button Grid.Column="3" Content="..." Padding="2,4" Command="{Binding SelectFocusFileListPathCommand}" />
-    </Grid>-->
     <Separator Grid.Row="2" Margin="-16,4" />
     <ListView Grid.Row="3" Margin="0,4" ItemsSource="{Binding DispTargetFileInformationCollection}" d:ItemsSource="{d:SampleData ItemCount=3}">
       <ListView.View>
         <GridView>
-          <GridViewColumn Header="ステータス">
-            <GridViewColumn.CellTemplate>
-              <DataTemplate>
-                <CheckBox Content="{Binding Status}" d:IsChecked="True" />
-              </DataTemplate>
-            </GridViewColumn.CellTemplate>
-          </GridViewColumn>
+          <GridViewColumn Header="ステータス" DisplayMemberBinding="{Binding Status}" />
           <GridViewColumn Header="コピー元" DisplayMemberBinding="{Binding Source}" />
           <GridViewColumn Header="コピー元バージョン" DisplayMemberBinding="{Binding SourceVersion}" />
           <GridViewColumn Header="コピー先" DisplayMemberBinding="{Binding Destination}" />
@@ -141,14 +105,48 @@
                  d:Visibility="Visible" />
     <Grid Grid.Row="6" Margin="0,4">
       <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="auto" />
         <ColumnDefinition Width="*" />
         <ColumnDefinition Width="96" />
         <ColumnDefinition Width="4" />
         <ColumnDefinition Width="96" />
       </Grid.ColumnDefinitions>
-      <!--<Button Grid.Column="0" Content="クリップボードに一覧をコピー" Command="{Binding CopyToClipboardCommand}" />-->
-      <Button Grid.Column="1" Content="確認" Command="{Binding CheckTargetFilesCommand}" />
-      <Button Grid.Column="3" Content="コピー" Command="{Binding CopyTargetFilesCommand}" />
+      <!--<Button Grid.Column="0" Content="非署名ファイルのコピー" Command="{Binding CopyUnsignedFilesCommand}" />-->
+      <Button Grid.Column="2" Content="確認" Command="{Binding CheckTargetFilesCommand}" />
+      <Button Grid.Column="4" Content="コピー" Command="{Binding CopyTargetFilesCommand}" />
+    </Grid>
+    <Separator Grid.Row="7" Margin="-16,4" />
+    <Grid Grid.Row="8">
+      <Grid.RowDefinitions>
+        <RowDefinition Height="auto" />
+        <RowDefinition Height="auto" />
+        <RowDefinition Height="auto" />
+      </Grid.RowDefinitions>
+      <Label Grid.Row="0" Content="非署名コピー" />
+      <ListView Grid.Row="1" Margin="0,4" ItemsSource="{Binding UnsignedFolderCollection}" SelectedItem="{Binding SelectUnsignedFolder}" d:ItemsSource="{d:SampleData ItemCount=1}">
+        <ListView.View>
+          <GridView>
+            <GridViewColumn Header="コピー元" DisplayMemberBinding="{Binding Source}" />
+            <GridViewColumn Header="コピー先" DisplayMemberBinding="{Binding Destination}" />
+          </GridView>
+        </ListView.View>
+      </ListView>
+      <Grid Grid.Row="2" Margin="0,4">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="auto" />
+          <ColumnDefinition Width="4" />
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="auto" />
+          <ColumnDefinition Width="4" />
+          <ColumnDefinition Width="auto" />
+          <ColumnDefinition Width="4" />
+          <ColumnDefinition Width="auto" />
+        </Grid.ColumnDefinitions>
+        <Button Grid.Column="0" Content="非署名ファイルのコピー" Command="{Binding CopyUnsignedFilesCommand}" />
+        <Button Grid.Column="3" Content="対象フォルダの追加" Command="{Binding AddUnsignedFolderCommand}" />
+        <Button Grid.Column="5" Content="対象フォルダの編集" Command="{Binding EditUnsignedFolderCommand}" />
+        <Button Grid.Column="7" Content="対象フォルダの削除" Command="{Binding RemoveUnsignedFolderCommand}" />
+      </Grid>
     </Grid>
   </Grid>
 </Window>

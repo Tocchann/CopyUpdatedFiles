@@ -62,15 +62,6 @@ public class CopyTargetFiles : IDisposable
 		{
 			return;
 		}
-		if( information.IsCheckTarget == false )
-		{
-			return;
-		}
-		// 本来コピーが必要な場合は、IsCheckTarget で最終的なコピー条件を判定することにした
-		//if( information.NeedCopy == false )
-		//{
-		//	return;
-		//}
 		// まだコピーされていない場合は、転送先のフォルダがないかもしれないので作成する
 		if( information.Status == TargetStatus.NotExist )
 		{

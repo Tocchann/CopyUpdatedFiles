@@ -163,13 +163,17 @@ public class CheckTargetFiles : IDisposable
 		foreach( var srcFile in srcFiles )
 		{
 			var relFilePath = srcFile.Substring( skipLen );
+			var dstFilePath = Path.Combine( information.Destination, relFilePath );
 			targetFileInfos.Add( new TargetFileInformation
 			{
 				Source = srcFile,
-				Destination = Path.Combine( information.Destination, relFilePath ),
+				Destination = dstFilePath,
 				Status = TargetStatus.Unknown,
-				Ignore = false,	//	参照用ファイルパスリストをどこかから取り込んできてそれで無視するフラグを自動設定するのが一番いいんだよね…
+				Ignore = false, //	参照用ファイルパスリストをどこかから取り込んできてそれで無視するフラグを自動設定するのが一番いいんだよね…
+				SourceOffsetPos = skipLen,
+				DestinationOffsetPos = dstFilePath.Length-relFilePath.Length,
 			} );
+			;
 		}
 	}
 	// 並列に大量のデータを作った後に一つずつ詰め込んでもらう(順番は考慮しない)
@@ -226,8 +230,6 @@ public class CheckTargetFiles : IDisposable
 				information.Status = TargetStatus.NotExist;
 			}
 		}
-		// デフォルトはコピー対象ファイルすべて
-		information.IsCheckTarget = information.NeedCopy;
 		return information;
 	}
 

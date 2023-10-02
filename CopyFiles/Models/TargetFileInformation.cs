@@ -31,8 +31,8 @@ public partial class TargetFileInformation : TargetInformation
 	[ObservableProperty]
 	Version? destinationVersion;
 
-	[ObservableProperty]
-	bool isCheckTarget;
+	public int SourceOffsetPos { get; set; }
+	public int DestinationOffsetPos { get; set; }
 
 	public bool NeedCopy
 	{
