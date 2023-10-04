@@ -22,7 +22,7 @@
       <RowDefinition Height="auto" />
       <RowDefinition Height="auto" />
       <RowDefinition Height="auto" />
-      <RowDefinition Height="*" />
+      <RowDefinition Height="auto" />
       <RowDefinition Height="auto" />
     </Grid.RowDefinitions>
     <Grid Grid.Row="0">
@@ -53,7 +53,7 @@
     </Grid>
     <Grid Grid.Row="1">
       <Grid.RowDefinitions>
-        <RowDefinition Height="auto" />
+        <RowDefinition Height="*" />
         <RowDefinition Height="auto" />
       </Grid.RowDefinitions>
       <ListView Grid.Row="0" Margin="0,4" ItemsSource="{Binding TargetFolderInformationCollection}" SelectedItem="{Binding SelectTargetFolderInformation}" d:ItemsSource="{d:SampleData ItemCount=2}">
