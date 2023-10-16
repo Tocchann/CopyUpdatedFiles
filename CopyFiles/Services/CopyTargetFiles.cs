@@ -69,7 +69,10 @@ public class CopyTargetFiles : IDisposable
 			Debug.Assert( dstDir != null ); //	フルパスでセットされているのでnullになることはない
 			Directory.CreateDirectory( dstDir );
 		}
-		File.Copy( information.Source, information.Destination, true );
+		if( information.NeedCopy )
+		{
+			File.Copy( information.Source, information.Destination, true );
+		}
 	}
 
 	volatile private int interlockedProgressValue;
