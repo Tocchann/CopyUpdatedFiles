@@ -10,3 +10,6 @@ public interface IView
 {
 	bool? ShowWindow();
 }
+public interface ISelectActionView : IView { }
+public interface ICopyFileView : IView { }
+public interface INonSignedFileCopyView : IView { }

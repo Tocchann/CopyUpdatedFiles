@@ -17,13 +17,11 @@ public class CopyTargetFiles : IDisposable
 {
 	public IProgressBarService ProgressBarService { get; }
 	public CancellationToken CancellationToken { get; }
-	public List<TargetFileInformation> TargetFileInfos { get; }
 
-	public CopyTargetFiles( IProgressBarService progressBarService, CancellationToken cancellationToken, List<TargetFileInformation> targetFileInfos )
+	public CopyTargetFiles( IProgressBarService progressBarService, CancellationToken cancellationToken )
 	{
 		ProgressBarService = progressBarService;
 		CancellationToken = cancellationToken;
-		TargetFileInfos = targetFileInfos;
 		ProgressBarService.IsIndeterminate = true;
 		ProgressBarService.IsProgressBarVisible = true;
 	}
@@ -31,7 +29,7 @@ public class CopyTargetFiles : IDisposable
 	{
 		ProgressBarService.IsProgressBarVisible = false;
 	}
-	public async Task ExecuteAsync()
+	public async Task ExecuteAsync( List<TargetFileInformation> targetFileInfos )
 	{
 		var blockOptions = new ExecutionDataflowBlockOptions
 		{
@@ -41,14 +39,14 @@ public class CopyTargetFiles : IDisposable
 		};
 		var copyActionBlock = new ActionBlock<TargetFileInformation>( CopyAction, blockOptions );
 		ProgressBarService.ProgressMin = 0;
-		ProgressBarService.ProgressMax = TargetFileInfos.Count;
-		interlockedProgressValue = 0;
+		ProgressBarService.ProgressMax = targetFileInfos.Count;
 		ProgressBarService.ProgressValue = interlockedProgressValue;
-		foreach( var targetFile in TargetFileInfos )
+		interlockedProgressValue = 0;
+		ProgressBarService.IsIndeterminate = false;
+		foreach( var targetFile in targetFileInfos )
 		{
 			copyActionBlock.Post( targetFile );
 		}
-		ProgressBarService.IsIndeterminate = false;
 		copyActionBlock.Complete();
 		await copyActionBlock.Completion;
 	}

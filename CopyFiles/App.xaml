@@ -8,6 +8,8 @@
       <Style TargetType="Button">
         <Setter Property="Padding" Value="16,4" />
       </Style>
+
+      <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
     </ResourceDictionary>
 
   </Application.Resources>

@@ -18,7 +18,7 @@ internal class ApplicationHostService : IHostedService
 	{
 		m_logger.LogInformation( System.Reflection.MethodBase.GetCurrentMethod()?.Name );
 		await m_persistAndRestoreService.RestoreDataAsync( cancellationToken );
-		App.Current.GetService<IView>()?.ShowWindow();
+		App.Current.GetService<ISelectActionView>()?.ShowWindow();
 		await Task.CompletedTask;
 	}
 

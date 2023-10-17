@@ -2,7 +2,6 @@
 using CopyFiles.ViewModels;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -18,19 +17,18 @@ using System.Windows.Shapes;
 namespace CopyFiles.Views;
 
 /// <summary>
-/// CopyFile.xaml の相互作用ロジック
+/// NonSignedFileCopyView.xaml の相互作用ロジック
 /// </summary>
-public partial class CopyFileView : ICopyFileView
+public partial class NonSignedFileCopyView : INonSignedFileCopyView
 {
-	public CopyFileView( CopyFileViewModel vm )
+	public NonSignedFileCopyView( NonSignedFileCopyViewModel vm )
 	{
 		InitializeComponent();
 		DataContext = vm;
 	}
-
 	public bool? ShowWindow()
 	{
-		Owner = App.Current.MainWindow;	// ポップアップに変える
+		Owner = App.Current.MainWindow; // ポップアップに変える
 		return ShowDialog();
 	}
 }

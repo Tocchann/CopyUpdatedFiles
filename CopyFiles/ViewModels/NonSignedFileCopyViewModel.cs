@@ -1,37 +1,39 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using CopyFiles.Contracts.Services;
 using CopyFiles.Contracts.Views;
 using CopyFiles.Models;
 using CopyFiles.Services;
 using Microsoft.Extensions.Logging;
 using Microsoft.Win32;
 using Morrin.Extensions.Abstractions;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
-using System.Diagnostics;
 using System.Linq;
+using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
 namespace CopyFiles.ViewModels;
 
-public partial class CopyFileViewModel : ImplementProgressBarBaseViewModel
+public partial class NonSignedFileCopyViewModel : ImplementProgressBarBaseViewModel
 {
-	public ObservableCollection<TargetInformation> TargetFolderInformationCollection { get; } = new();
+	public ObservableCollection<string> TargetIsmFiles { get; } = new();
+	public ObservableCollection<TargetInformation> UnsignedFolderCollection { get; } = new();
 	public ObservableCollection<TargetFileInformation> DispTargetFileInformationCollection { get; } = new();
 
-	public ObservableCollection<string> TargetIsmFiles { get; } = new();
-
 	[ObservableProperty]
-	TargetInformation? selectTargetFolderInformation;
+	TargetInformation? selectUnsignedFolder;
 
 	[ObservableProperty]
 	bool isHideIgnoreFiles;
 
 	[ObservableProperty]
 	bool isDispCopyFilesOnly;
+
 
 	[ObservableProperty]
 	string? selectTargetIsmFile;
@@ -57,7 +59,7 @@ public partial class CopyFileViewModel : ImplementProgressBarBaseViewModel
 			}
 		}
 	}
-	[RelayCommand(CanExecute=nameof(CanExecuteIsmFile))]
+	[RelayCommand( CanExecute = nameof( CanExecuteIsmFile ) )]
 	void EditIsmFile()
 	{
 		m_logger.LogInformation( System.Reflection.MethodBase.GetCurrentMethod()?.Name );
@@ -85,7 +87,7 @@ public partial class CopyFileViewModel : ImplementProgressBarBaseViewModel
 			}
 		}
 	}
-	[RelayCommand(CanExecute=nameof(CanExecuteIsmFile))]
+	[RelayCommand( CanExecute = nameof( CanExecuteIsmFile ) )]
 	void DeleteIsmFile()
 	{
 		m_logger.LogInformation( System.Reflection.MethodBase.GetCurrentMethod()?.Name );
@@ -99,60 +101,66 @@ public partial class CopyFileViewModel : ImplementProgressBarBaseViewModel
 			App.Current.Properties[nameof( TargetIsmFiles )] = TargetIsmFiles;
 		}
 	}
-	bool CanExecuteSelectTargetFolderInformation() => SelectTargetFolderInformation != null;
+
+	bool CanExecuteUnsignedFolderAction() => SelectUnsignedFolder != null;
 	[RelayCommand]
-	void AddFolder()
+	void AddUnsignedFolder()
 	{
 		m_logger.LogInformation( System.Reflection.MethodBase.GetCurrentMethod()?.Name );
 		var dlg = App.Current.GetService<IAppendFolderDialog>();
 		if( dlg != null )
 		{
-			dlg.ViewModel.DialogTitle = "追跡フォルダの追加";
-			dlg.ViewModel.TargetFolderInformationCollection = TargetFolderInformationCollection;
+			dlg.ViewModel.DialogTitle = "非署名ファイルのコピー対象フォルダの追加";
+			dlg.ViewModel.TargetFolderInformationCollection = UnsignedFolderCollection;
 			if( dlg.ShowWindow() != false )
 			{
-				TargetFolderInformationCollection.Add( dlg.ViewModel.TargetFolderInformation );
-				App.Current.Properties[nameof( TargetFolderInformationCollection )] = TargetFolderInformationCollection.ToArray();
+				UnsignedFolderCollection.Add( dlg.ViewModel.TargetFolderInformation );
+				App.Current.Properties[nameof( UnsignedFolderCollection )] = UnsignedFolderCollection.ToArray();
+
+				CheckTargetFilesCommand.NotifyCanExecuteChanged();
 			}
 		}
 	}
-	[RelayCommand(CanExecute=nameof( CanExecuteSelectTargetFolderInformation ) )]
-	void EditFolder()
+	[RelayCommand( CanExecute = nameof( CanExecuteUnsignedFolderAction ) )]
+	void EditUnsignedFolder()
 	{
 		m_logger.LogInformation( System.Reflection.MethodBase.GetCurrentMethod()?.Name );
 		var dlg = App.Current.GetService<IAppendFolderDialog>();
-		if( dlg != null && SelectTargetFolderInformation != null )
+		if( dlg != null && SelectUnsignedFolder != null )
 		{
-			dlg.ViewModel.DialogTitle = "追跡フォルダの編集";
-			dlg.ViewModel.TargetFolderInformation = SelectTargetFolderInformation;
-			dlg.ViewModel.Source = SelectTargetFolderInformation.Source;
-			dlg.ViewModel.Destination = SelectTargetFolderInformation.Destination;
-			dlg.ViewModel.TargetFolderInformationCollection = TargetFolderInformationCollection;
+			dlg.ViewModel.DialogTitle = "非署名ファイルのコピー対象フォルダの編集";
+			dlg.ViewModel.TargetFolderInformation = SelectUnsignedFolder;
+			dlg.ViewModel.Source = SelectUnsignedFolder.Source;
+			dlg.ViewModel.Destination = SelectUnsignedFolder.Destination;
+			dlg.ViewModel.TargetFolderInformationCollection = UnsignedFolderCollection;
 			if( dlg.ShowWindow() != false )
 			{
-				SelectTargetFolderInformation.Source = dlg.ViewModel.Source;
-				SelectTargetFolderInformation.Destination = dlg.ViewModel.Destination;
+				SelectUnsignedFolder.Source = dlg.ViewModel.Source;
+				SelectUnsignedFolder.Destination = dlg.ViewModel.Destination;
 				// 実際は、コレクションデータも変わるのでそのまま書き込んでおけばよい
-				App.Current.Properties[nameof( TargetFolderInformationCollection )] = TargetFolderInformationCollection.ToArray();
+				App.Current.Properties[nameof( UnsignedFolderCollection )] = UnsignedFolderCollection.ToArray();
+
+				CheckTargetFilesCommand.NotifyCanExecuteChanged();
 			}
 		}
 	}
-	[RelayCommand(CanExecute=nameof(CanExecuteSelectTargetFolderInformation))]
-	void RemoveFolder()
+	[RelayCommand( CanExecute = nameof( CanExecuteUnsignedFolderAction ) )]
+	void RemoveUnsignedFolder()
 	{
 		m_logger.LogInformation( System.Reflection.MethodBase.GetCurrentMethod()?.Name );
-		if( SelectTargetFolderInformation != null )
+		if( SelectUnsignedFolder != null )
 		{
-			if( m_alert.Show( "選択された追跡フォルダを削除します。\nよろしいですか？", IDispAlert.Buttons.YesNo ) != IDispAlert.Result.Yes )
+			if( m_alert.Show( "選択された非署名ファイルのコピー対象フォルダを削除します。\nよろしいですか？", IDispAlert.Buttons.YesNo ) != IDispAlert.Result.Yes )
 			{
 				return;
 			}
-			TargetFolderInformationCollection.Remove( SelectTargetFolderInformation );
-			App.Current.Properties[nameof( TargetFolderInformationCollection )] = TargetFolderInformationCollection.ToArray();
+			UnsignedFolderCollection.Remove( SelectUnsignedFolder );
+			App.Current.Properties[nameof( UnsignedFolderCollection )] = UnsignedFolderCollection.ToArray();
+
+			CheckTargetFilesCommand.NotifyCanExecuteChanged();
 		}
 	}
 
-	bool CanExecuteTargetFileAction() => DispTargetFileInformationCollection.Count > 0;
 	[RelayCommand]
 	async Task CheckTargetFiles()
 	{
@@ -167,7 +175,7 @@ public partial class CopyFileViewModel : ImplementProgressBarBaseViewModel
 			}
 			using( var checkTargetFiles = new CheckTargetFiles( this, m_tokenSrc.Token ) )
 			{
-				await checkTargetFiles.ExecuteAsync( true, TargetFolderInformationCollection, TargetIsmFiles );
+				await checkTargetFiles.ExecuteAsync( false, UnsignedFolderCollection, TargetIsmFiles );
 				// データを構築し終わったらコピーする(ここはメインスレッドで良い)
 				m_targetFileInformationCollection = checkTargetFiles.TargetFileInfos;
 			}
@@ -180,14 +188,14 @@ public partial class CopyFileViewModel : ImplementProgressBarBaseViewModel
 		}
 	}
 
-	[RelayCommand(CanExecute=nameof(CanExecuteTargetFileAction))]
-	async Task CopyTargetFiles()
+	bool CanExecuteTargetFileAction() => DispTargetFileInformationCollection.Count > 0;
+	[RelayCommand( CanExecute = nameof( CanExecuteTargetFileAction ) )]
+	async Task CopyUnsignedFiles()
 	{
 		m_logger.LogInformation( System.Reflection.MethodBase.GetCurrentMethod()?.Name );
-		if( CanExecuteTargetFileAction() == false )
+		if( UnsignedFolderCollection.Count == 0 )
 		{
-			m_alert.Show( "コピーするものがありません。" );
-			return;
+			m_alert.Show( "処理対象フォルダが確定していません" );
 		}
 		if( !IsProgressBarVisible )
 		{
@@ -211,6 +219,25 @@ public partial class CopyFileViewModel : ImplementProgressBarBaseViewModel
 		}
 	}
 
+	protected override void OnPropertyChanged( PropertyChangedEventArgs e )
+	{
+		switch( e.PropertyName )
+		{
+		case nameof( SelectUnsignedFolder ):
+			EditUnsignedFolderCommand.NotifyCanExecuteChanged();
+			RemoveUnsignedFolderCommand.NotifyCanExecuteChanged();
+			break;
+		case nameof( IsDispCopyFilesOnly ):
+			App.Current.Properties[nameof( NonSignedFileCopyViewModel ) + "." + nameof( IsDispCopyFilesOnly )] = IsDispCopyFilesOnly;
+			RefreshTargetFileInformationCollection();
+			break;
+		case nameof( IsHideIgnoreFiles ):
+			App.Current.Properties[nameof( NonSignedFileCopyViewModel ) + "." + nameof( IsHideIgnoreFiles )] = IsHideIgnoreFiles;
+			RefreshTargetFileInformationCollection();
+			break;
+		}
+		base.OnPropertyChanged( e );
+	}
 	private void RefreshTargetFileInformationCollection()
 	{
 		DispTargetFileInformationCollection.Clear();
@@ -232,72 +259,30 @@ public partial class CopyFileViewModel : ImplementProgressBarBaseViewModel
 				DispTargetFileInformationCollection.Add( fileInfo );
 			}
 		}
-		CopyTargetFilesCommand?.NotifyCanExecuteChanged();
-	}
-	protected override void OnPropertyChanged( PropertyChangedEventArgs e )
-	{
-		switch( e.PropertyName )
-		{
-		case nameof( SelectTargetFolderInformation ):
-			EditFolderCommand.NotifyCanExecuteChanged();
-			RemoveFolderCommand.NotifyCanExecuteChanged();
-			break;
-		case nameof( IsDispCopyFilesOnly ):
-			App.Current.Properties[nameof( CopyFileViewModel ) + "." + nameof( IsDispCopyFilesOnly )] = IsDispCopyFilesOnly;
-			RefreshTargetFileInformationCollection();
-			break;
-		case nameof( IsHideIgnoreFiles ):
-			App.Current.Properties[nameof( CopyFileViewModel ) + "." + nameof( IsHideIgnoreFiles )] = IsHideIgnoreFiles;
-			RefreshTargetFileInformationCollection();
-			break;
-		case nameof( SelectTargetIsmFile ):
-			EditIsmFileCommand.NotifyCanExecuteChanged();
-			DeleteIsmFileCommand.NotifyCanExecuteChanged();
-			break;
-		}
-		base.OnPropertyChanged( e );
+		CopyUnsignedFilesCommand.NotifyCanExecuteChanged();
 	}
 
-	public CopyFileViewModel( ILogger<CopyFileViewModel> logger, IDispAlert alart )
+	public NonSignedFileCopyViewModel( ILogger<NonSignedFileCopyViewModel> logger, IDispAlert alert )
 	{
-		m_logger = logger;
-		m_alert = alart;
 		m_tokenSrc = new();
-
-		App.Current.LoadCollection( TargetFolderInformationCollection, nameof( TargetFolderInformationCollection ) );
+		m_logger = logger;
+		m_alert = alert;
+		App.Current.LoadCollection( UnsignedFolderCollection, nameof( UnsignedFolderCollection ) );
 		App.Current.LoadTargetIsmFiles( TargetIsmFiles );
-		// クラスを複数に分けたので名前の競合を避けるため、プレフィックスをつける
-		if( App.Current.Properties.Contains( nameof( IsDispCopyFilesOnly ) ) )
-		{
-			IsDispCopyFilesOnly = App.Current.GetBoolean( nameof( IsDispCopyFilesOnly ), true );
-			App.Current.Properties.Remove( nameof( IsDispCopyFilesOnly ) );
-			App.Current.Properties[nameof( CopyFileViewModel )+"."+nameof( IsDispCopyFilesOnly )] = IsDispCopyFilesOnly;
-		}
-		else
-		{
-			IsDispCopyFilesOnly = App.Current.GetBoolean( nameof( CopyFileViewModel ) + "." + nameof( IsDispCopyFilesOnly ), true );
-		}
-		if( App.Current.Properties.Contains( nameof( IsHideIgnoreFiles ) ) )
-		{
-			IsHideIgnoreFiles = App.Current.GetBoolean( nameof( IsHideIgnoreFiles ), true );
-			App.Current.Properties.Remove( nameof( IsHideIgnoreFiles ) );
-			App.Current.Properties[nameof( CopyFileViewModel ) + "." + nameof( IsHideIgnoreFiles )] = IsHideIgnoreFiles;
-		}
-		else
-		{
-			IsHideIgnoreFiles = App.Current.GetBoolean( nameof( CopyFileViewModel ) + "." + nameof( IsHideIgnoreFiles ), true );
-		}
+
+		IsDispCopyFilesOnly = App.Current.GetBoolean( nameof( NonSignedFileCopyViewModel ) + "." + nameof( IsDispCopyFilesOnly ), true );
+		IsHideIgnoreFiles = App.Current.GetBoolean( nameof( NonSignedFileCopyViewModel ) + "." + nameof( IsHideIgnoreFiles ), true );
+
 		RefreshTargetFileInformationCollection();
 	}
-
 	[DesignOnly( true )]
 #pragma warning disable CS8618 // null 非許容のフィールドには、コンストラクターの終了時に null 以外の値が入っていなければなりません。Null 許容として宣言することをご検討ください。
-	public CopyFileViewModel()
+	public NonSignedFileCopyViewModel()
 #pragma warning restore CS8618 // null 非許容のフィールドには、コンストラクターの終了時に null 以外の値が入っていなければなりません。Null 許容として宣言することをご検討ください。
 	{
 	}
-	private List<TargetFileInformation>? m_targetFileInformationCollection;
-	private ILogger<CopyFileViewModel> m_logger;
+	private ILogger<NonSignedFileCopyViewModel> m_logger;
 	private IDispAlert m_alert;
 	private CancellationTokenSource m_tokenSrc;
+	private List<TargetFileInformation>? m_targetFileInformationCollection;
 }

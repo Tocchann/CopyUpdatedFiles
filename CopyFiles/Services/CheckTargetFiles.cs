@@ -27,7 +27,6 @@ public class CheckTargetFiles : IDisposable
 		ProgressBarService = progressBarService;
 		CancellationToken = token;
 		TargetFileInfos = new();
-		m_focusFileListPath = new();
 		ProgressBarService.IsIndeterminate = true;
 		ProgressBarService.IsProgressBarVisible = true;
 	}
@@ -36,8 +35,12 @@ public class CheckTargetFiles : IDisposable
 		ProgressBarService.IsProgressBarVisible = false;
 	}
 
-	public async Task ExecuteAsync( IEnumerable<TargetInformation> targetFolderInformations, IEnumerable<string> targetIsmFiles )
+	public async Task ExecuteAsync( bool checkCopyTargets, IEnumerable<TargetInformation> targetFolderInformations, IEnumerable<string> targetIsmFiles )
 	{
+		// ISMを読み取って、対象ファイル一覧を構築する
+		var readIsmFileList = new AsyncReadIsmFileList();
+		var focusFiles = await readIsmFileList.ReadIsmFilesAsync( targetIsmFiles, CancellationToken );
+
 		var blockOptions = new ExecutionDataflowBlockOptions
 		{
 			CancellationToken = CancellationToken,
@@ -48,33 +51,27 @@ public class CheckTargetFiles : IDisposable
 		{
 			PropagateCompletion = true,
 		};
-
-		// 対象ファイルを絞り込みするためのパスリストをセットする
-		var readTargetFileFromIsmBlock = new TransformManyBlock<string,string>( ReadTargetFileFromIsm, blockOptions );
-		var joinFocusFilesBlock = new ActionBlock<string>( JoinFocusFiles, blockOptions );
-		readTargetFileFromIsmBlock.LinkTo( joinFocusFilesBlock, linkOptions );
-	
-
 		// 検索対象フォルダを列挙してファイル一覧をリストアップする
 		var listupTargetFilesBlock = new TransformManyBlock<TargetInformation, TargetFileInformation>( ListupTargetFiles, blockOptions );
-		var joinTargetFileInfoBlock = new ActionBlock<TargetFileInformation>( JoinTargetFileInfo, blockOptions );
+		var joinTargetFileInfoBlock =
+			checkCopyTargets ? new ActionBlock<TargetFileInformation>( info => SetDistinationIgnoreFile( info, focusFiles ), blockOptions )
+							 : new ActionBlock<TargetFileInformation>( info => SetSourceIgnoreFile( info, focusFiles ), blockOptions );
+
 		listupTargetFilesBlock.LinkTo( joinTargetFileInfoBlock, linkOptions );
 
-
-		// 実際のファイルを結合して状態を確認する
+		// ファイルの情報詳細を構築する
 		var checkTargetFileStatusBlock = new TransformBlock<TargetFileInformation, TargetFileInformation>( CheckTargetFileStatus, blockOptions );
+		var checkUnsignedFileStatusBlock = new TransformBlock<TargetFileInformation, TargetFileInformation>( CheckUnsignedFileStatus, blockOptions );
 		var pushTargetFileInfoBlock = new ActionBlock<TargetFileInformation>( PushTargetFileInfo, blockOptions );
-
-		checkTargetFileStatusBlock.LinkTo( pushTargetFileInfoBlock, linkOptions );
-
-		// ISMを読み取って対象ファイル一覧を構築する
-		foreach( var ismFile in targetIsmFiles )
+		if( checkCopyTargets )
 		{
-			readTargetFileFromIsmBlock.Post( ismFile );
+			checkTargetFileStatusBlock.LinkTo( pushTargetFileInfoBlock, linkOptions );
 		}
-		readTargetFileFromIsmBlock.Complete();
-		await joinFocusFilesBlock.Completion;
-
+		else
+		{
+			checkTargetFileStatusBlock.LinkTo( checkUnsignedFileStatusBlock, linkOptions );
+			checkUnsignedFileStatusBlock.LinkTo( pushTargetFileInfoBlock, linkOptions );
+		}
 		// 対象ファイルの列挙
 		foreach( var folderInfo in targetFolderInformations )
 		{
@@ -88,51 +85,13 @@ public class CheckTargetFiles : IDisposable
 		interlockedProgressValue = 0;
 		ProgressBarService.ProgressValue = interlockedProgressValue;
 		ProgressBarService.IsIndeterminate = false;
-
-		// 実際のファイルを比較して処理の必要があるかを確認する
+		// 実際のファイルの状態を取得して、コピー対象かどうかを比較する
 		foreach( var info in TargetFileInfos )
 		{
 			checkTargetFileStatusBlock.Post( info );
 		}
 		checkTargetFileStatusBlock.Complete();
 		await pushTargetFileInfoBlock.Completion;
-	}
-
-	private void JoinFocusFiles( string filePath )
-	{
-		lock( m_focusFileListPath )
-		{
-			m_focusFileListPath.Add( filePath );
-		}
-	}
-
-	private IEnumerable<string> ReadTargetFileFromIsm( string ismFile )
-	{
-		// XMLファイルじゃない場合はそのままファイルパスを返すだけでよい
-		if( IsXmlFile( ismFile ) )
-		{
-			var result = IsmFile.ReadSourceFile( ismFile );
-			return result;
-		}
-		else
-		{
-			var result = new string[] { ismFile };
-			return result;
-		}
-	}
-
-	private bool IsXmlFile( string ismFile )
-	{
-		try
-		{
-			var doc = new XmlDocument();
-			doc.Load( ismFile );
-			return true;
-		}
-		catch
-		{
-		}
-		return false;
 	}
 
 	private IEnumerable<TargetFileInformation> ListupTargetFiles( TargetInformation information )
@@ -173,61 +132,85 @@ public class CheckTargetFiles : IDisposable
 				SourceOffsetPos = skipLen,
 				DestinationOffsetPos = dstFilePath.Length-relFilePath.Length,
 			} );
-			;
 		}
 	}
-	// 並列に大量のデータを作った後に一つずつ詰め込んでもらう(順番は考慮しない)
-	private void JoinTargetFileInfo( TargetFileInformation information )
+	// コピー先が対象かどうかをチェック
+	private void SetDistinationIgnoreFile( TargetFileInformation information, HashSet<string> focusFiles )
 	{
-		//	リストが指定されている場合はリストになければ除外する
-		if( m_focusFileListPath.Count != 0 )
-		{
-			information.Ignore = m_focusFileListPath.Contains( information.Destination ) ? false : true ;
-		}
+		//	リストがあってデータが含まれていない場合は無視
+		information.Ignore = focusFiles.Count != 0 && focusFiles.Contains( information.Destination ) == false;
 		lock( TargetFileInfos )
 		{
 			TargetFileInfos.Add( information );
 		}
 	}
+	// コピー元が対象かどうかをチェック
+	private void SetSourceIgnoreFile( TargetFileInformation information, HashSet<string> focusFiles )
+	{
+		//	リストがあってデータが含まれていない場合は無視
+		information.Ignore = focusFiles.Count != 0 && focusFiles.Contains( information.Source ) == false;
+		lock( TargetFileInfos )
+		{
+			TargetFileInfos.Add( information );
+		}
+	}
+	
 	private TargetFileInformation CheckTargetFileStatus( TargetFileInformation information )
 	{
 		// チェックは毎回確認する
-		//if( information.Ignore == false )	// 検査では無視しない
+		information.SourceVersion = GetFileVesrion( information.Source );
+		// コピー先がある場合は、実際に比較する
+		if( File.Exists( information.Destination ) )
 		{
-			information.SourceVersion = GetFileVesrion( information.Source );
-			// コピー先がある場合は、実際に比較する
-			if( File.Exists( information.Destination ) )
+			information.DestinationVersion = GetFileVesrion( information.Destination );
+			// 両方存在する場合のみハッシュで比較する。
+			using( var hashAlgorithm = SHA256.Create() )
 			{
-				information.DestinationVersion = GetFileVesrion( information.Destination );
-				// 両方存在する場合のみハッシュで比較する。
-				using( var hashAlgorithm = SHA256.Create() )
+				var srcHash = GetFileHash( hashAlgorithm, information.Source );
+				var dstHash = GetFileHash( hashAlgorithm, information.Destination );
+				if( srcHash != dstHash )
 				{
-					var srcHash = GetFileHash( hashAlgorithm, information.Source );
-					var dstHash = GetFileHash( hashAlgorithm, information.Destination );
-					if( srcHash != dstHash )
-					{
-						information.Status =
-							information.SourceVersion != null && information.SourceVersion == information.DestinationVersion
-								? TargetStatus.DifferentSameVer
-								: TargetStatus.Different;
-					}
-					else
-					{
-						// 内容は一致するが日付などが異なっている場合のフラグ判定
-						var srcInfo = new FileInfo( information.Source );
-						var dstInfo = new FileInfo( information.Destination );
-						information.Status =
-							srcInfo.Length != dstInfo.Length
-								? TargetStatus.SameWithoutSize
-								: srcInfo.LastWriteTimeUtc != dstInfo.LastWriteTimeUtc
-									? TargetStatus.SameWithoutDate
-									: TargetStatus.SameFullMatch;
-					}
+					information.Status =
+						information.SourceVersion != null && information.SourceVersion == information.DestinationVersion
+							? TargetStatus.DifferentSameVer
+							: TargetStatus.Different;
+				}
+				else
+				{
+					// 内容は一致するが日付などが異なっている場合のフラグ判定
+					var srcInfo = new FileInfo( information.Source );
+					var dstInfo = new FileInfo( information.Destination );
+					information.Status =
+						srcInfo.Length != dstInfo.Length
+							? TargetStatus.SameWithoutSize
+							: srcInfo.LastWriteTimeUtc != dstInfo.LastWriteTimeUtc
+								? TargetStatus.SameWithoutDate
+								: TargetStatus.SameFullMatch;
 				}
 			}
-			else
+		}
+		else
+		{
+			information.Status = TargetStatus.NotExist;
+		}
+		return information;
+	}
+	private TargetFileInformation CheckUnsignedFileStatus( TargetFileInformation information )
+	{
+		// 処理対象のものだけチェックする
+		if( information.Ignore == false )
+		{
+			information.Ignore = true;
+			// 未署名のものだけコピーするようにすればよい
+			var fileImage = File.ReadAllBytes( information.Source );
+			if( PeFileService.IsValidPE( fileImage ) )
 			{
-				information.Status = TargetStatus.NotExist;
+				// 署名されているかどうかがキーポイントになる
+				if( !PeFileService.IsSetSignatgure( fileImage ) )
+				{
+					information.Status = TargetStatus.NotSigned;
+					information.Ignore = false;
+				}
 			}
 		}
 		return information;
@@ -257,18 +240,6 @@ public class CheckTargetFiles : IDisposable
 	private void PushTargetFileInfo( TargetFileInformation information )
 	{
 		ProgressBarService.ProgressValue = Interlocked.Increment( ref interlockedProgressValue );
-		//// ここは、単純設定するだけ(前回の情報は保持しておきたいけどどうする？)
-		//var existInfo = ProgressBarService.TargetFileInformationCollection.FirstOrDefault( info => info.Source == information.Source );
-		//if( existInfo == null )
-		//{
-		//	ProgressBarService.TargetFileInformationCollection.Add( information );
-		//}
-		//else
-		//{
-		//	existInfo.Ignore = information.Ignore;
-		//	existInfo.Status = information.Status;
-		//}
 	}
 	private int interlockedProgressValue;
-	private HashSet<string> m_focusFileListPath;
 }

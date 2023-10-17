@@ -1,0 +1,29 @@
+﻿<Window x:Class="CopyFiles.Views.SelectActionView"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="clr-namespace:CopyFiles.ViewModels"
+        xmlns:local="clr-namespace:CopyFiles.Views"
+        mc:Ignorable="d"
+        Title="ビルドサポートツール" SizeToContent="WidthAndHeight" ResizeMode="NoResize"
+        WindowStartupLocation="CenterScreen" WindowStyle="SingleBorderWindow">
+  <d:Window.DataContext>
+    <vm:SelectActionViewModel />
+  </d:Window.DataContext>
+  <Window.Resources>
+    <ResourceDictionary>
+      <Style TargetType="Button">
+        <Setter Property="Padding" Value="64,8" />
+      </Style>
+    </ResourceDictionary>
+  </Window.Resources>
+  <Grid Margin="8,4">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="auto" />
+      <RowDefinition Height="auto" />
+    </Grid.RowDefinitions>
+    <Button Grid.Row="0" Margin="0,4" Content="ビルド済みファイルのコピー" Command="{Binding CopyBuildFilesCommand}" />
+    <Button Grid.Row="1" Margin="0,4" Content="未署名ファイルのコピー" Command="{Binding CopyNonSignedFilesCommand}" />
+  </Grid>
+</Window>

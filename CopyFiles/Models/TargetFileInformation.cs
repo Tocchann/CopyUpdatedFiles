@@ -9,13 +9,38 @@ namespace CopyFiles.Models;
 
 public enum TargetStatus
 {
-	Unknown, // 不明
-	NotExist, // コピー先がない
-	Different, // コピー先と異なる
-	DifferentSameVer, // コピー先と異なるがバージョンが同じ
-	SameFullMatch, // コピー先と一致(日付も一致)
-	SameWithoutDate, // コピー先と一致(ただし日付違い。ビルドされたけど内容が変わっていない)
-	SameWithoutSize, // サイズは違うが内容は一致(実行ファイルで署名の有無が該当)
+	/// <summary>
+	/// 不明
+	/// </summary>
+	Unknown,
+	/// <summary>
+	/// コピー先無し
+	/// </summary>
+	NotExist,
+	/// <summary>
+	/// コピー先と内容が異なる
+	/// </summary>
+	Different,
+	/// <summary>
+	/// コピー先と内容は異なるがバージョンは同じ
+	/// </summary>
+	DifferentSameVer,
+	/// <summary>
+	/// コピー先と完全一致(内容、日付、バージョン)
+	/// </summary>
+	SameFullMatch,
+	/// <summary>
+	/// コピー先と一致(日付は違うが内容は同じ)
+	/// </summary>
+	SameWithoutDate,
+	/// <summary>
+	/// コピー先とサイズは違うが内容は同じ(署名の有無)
+	/// </summary>
+	SameWithoutSize,
+	/// <summary>
+	/// コピー元が未署名(未署名コピー用フラグ)
+	/// </summary>
+	NotSigned,
 }
 public partial class TargetFileInformation : TargetInformation
 {
@@ -46,7 +71,7 @@ public partial class TargetFileInformation : TargetInformation
 				TargetStatus.SameFullMatch => false, // コピー先と一致(日付も一致)
 				TargetStatus.SameWithoutDate => false, // コピー先と一致(日付が違うだけだったらコピーしなくても問題ないのでコピーしない)
 				TargetStatus.SameWithoutSize => false, // サイズは違うが内容は一致(実行ファイルで署名の有無が該当。署名の有無だけなら、変更しない)
-													   //TargetStatus.Unknown => false, // 不明はプログラム的にいただけない状態
+				TargetStatus.NotSigned => true, // コピー元に署名がない(未署名処理用)
 				_ => throw new ArgumentOutOfRangeException( nameof( Status ) ),
 			};
 		}
