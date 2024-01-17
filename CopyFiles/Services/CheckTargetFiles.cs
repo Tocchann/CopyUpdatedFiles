@@ -197,8 +197,8 @@ public class CheckTargetFiles : IDisposable
 	}
 	private TargetFileInformation CheckUnsignedFileStatus( TargetFileInformation information )
 	{
-		// すでにコピー済みのものは除外する
-		if( information.Ignore == false && information.Status != TargetStatus.SameFullMatch )
+		// コピー対象だけ列挙すればよい
+		if( information.Ignore == false && information.NeedCopy )
 		{
 			information.Ignore = true;
 			// 未署名のものだけコピーするようにすればよい
