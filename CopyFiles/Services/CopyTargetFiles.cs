@@ -60,15 +60,12 @@ public class CopyTargetFiles : IDisposable
 		{
 			return;
 		}
-		// まだコピーされていない場合は、転送先のフォルダがないかもしれないので作成する
-		if( information.Status == TargetStatus.NotExist )
+		if( information.NeedCopy )
 		{
+			// コピーする場合は、ディレクトリを作成する(無条件に作成を呼び出してもエラーにはならない)
 			var dstDir = Path.GetDirectoryName( information.Destination );
 			Debug.Assert( dstDir != null ); //	フルパスでセットされているのでnullになることはない
 			Directory.CreateDirectory( dstDir );
-		}
-		if( information.NeedCopy )
-		{
 			File.Copy( information.Source, information.Destination, true );
 		}
 	}
