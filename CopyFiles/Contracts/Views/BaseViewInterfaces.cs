@@ -1,4 +1,5 @@
-﻿using System;
+﻿using CopyFiles.ViewModels;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -13,3 +14,7 @@ public interface IView
 public interface ISelectActionView : IView { }
 public interface ICopyFileView : IView { }
 public interface INonSignedFileCopyView : IView { }
+public interface IAddSolutionDialog : IView
+{
+	AddSolutionViewModel ViewModel { get; }
+}

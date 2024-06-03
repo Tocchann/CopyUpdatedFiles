@@ -49,7 +49,7 @@ public partial class CopyFileViewModel : ImplementProgressBarBaseViewModel
 			{
 				// 空データを突っ込んでいるかもしれないので削除する
 				TargetIsmFiles.Add( dlg.FileName );
-				App.Current.Properties[nameof( TargetIsmFiles )] = TargetIsmFiles;
+				App.Current.CurrentTargetSolution.TargetIsmFiles = TargetIsmFiles.ToArray();
 			}
 			else
 			{
@@ -76,7 +76,7 @@ public partial class CopyFileViewModel : ImplementProgressBarBaseViewModel
 					TargetIsmFiles.Remove( SelectTargetIsmFile );
 					TargetIsmFiles.Add( dlg.FileName );
 					SelectTargetIsmFile = dlg.FileName;
-					App.Current.Properties[nameof( TargetIsmFiles )] = TargetIsmFiles;
+					App.Current.CurrentTargetSolution.TargetIsmFiles = TargetIsmFiles.ToArray();
 				}
 				else
 				{
@@ -96,7 +96,7 @@ public partial class CopyFileViewModel : ImplementProgressBarBaseViewModel
 				return;
 			}
 			TargetIsmFiles.Remove( SelectTargetIsmFile );
-			App.Current.Properties[nameof( TargetIsmFiles )] = TargetIsmFiles;
+			App.Current.CurrentTargetSolution.TargetIsmFiles = TargetIsmFiles.ToArray();
 		}
 	}
 	bool CanExecuteSelectTargetFolderInformation() => SelectTargetFolderInformation != null;
@@ -112,7 +112,7 @@ public partial class CopyFileViewModel : ImplementProgressBarBaseViewModel
 			if( dlg.ShowWindow() != false )
 			{
 				TargetFolderInformationCollection.Add( dlg.ViewModel.TargetFolderInformation );
-				App.Current.Properties[nameof( TargetFolderInformationCollection )] = TargetFolderInformationCollection.ToArray();
+				App.Current.CurrentTargetSolution.CopyFileDataModel.TargetInformations = TargetFolderInformationCollection.ToArray();
 			}
 		}
 	}
@@ -133,7 +133,7 @@ public partial class CopyFileViewModel : ImplementProgressBarBaseViewModel
 				SelectTargetFolderInformation.Source = dlg.ViewModel.Source;
 				SelectTargetFolderInformation.Destination = dlg.ViewModel.Destination;
 				// 実際は、コレクションデータも変わるのでそのまま書き込んでおけばよい
-				App.Current.Properties[nameof( TargetFolderInformationCollection )] = TargetFolderInformationCollection.ToArray();
+				App.Current.CurrentTargetSolution.CopyFileDataModel.TargetInformations = TargetFolderInformationCollection.ToArray();
 			}
 		}
 	}
@@ -148,7 +148,7 @@ public partial class CopyFileViewModel : ImplementProgressBarBaseViewModel
 				return;
 			}
 			TargetFolderInformationCollection.Remove( SelectTargetFolderInformation );
-			App.Current.Properties[nameof( TargetFolderInformationCollection )] = TargetFolderInformationCollection.ToArray();
+			App.Current.CurrentTargetSolution.CopyFileDataModel.TargetInformations = TargetFolderInformationCollection.ToArray();
 		}
 	}
 
@@ -234,28 +234,25 @@ public partial class CopyFileViewModel : ImplementProgressBarBaseViewModel
 		}
 		CopyTargetFilesCommand?.NotifyCanExecuteChanged();
 	}
-	protected override void OnPropertyChanged( PropertyChangedEventArgs e )
+	partial void OnSelectTargetFolderInformationChanged( TargetInformation? value )
 	{
-		switch( e.PropertyName )
-		{
-		case nameof( SelectTargetFolderInformation ):
-			EditFolderCommand.NotifyCanExecuteChanged();
-			RemoveFolderCommand.NotifyCanExecuteChanged();
-			break;
-		case nameof( IsDispCopyFilesOnly ):
-			App.Current.Properties[nameof( CopyFileViewModel ) + "." + nameof( IsDispCopyFilesOnly )] = IsDispCopyFilesOnly;
-			RefreshTargetFileInformationCollection();
-			break;
-		case nameof( IsHideIgnoreFiles ):
-			App.Current.Properties[nameof( CopyFileViewModel ) + "." + nameof( IsHideIgnoreFiles )] = IsHideIgnoreFiles;
-			RefreshTargetFileInformationCollection();
-			break;
-		case nameof( SelectTargetIsmFile ):
-			EditIsmFileCommand.NotifyCanExecuteChanged();
-			DeleteIsmFileCommand.NotifyCanExecuteChanged();
-			break;
-		}
-		base.OnPropertyChanged( e );
+		EditFolderCommand.NotifyCanExecuteChanged();
+		RemoveFolderCommand.NotifyCanExecuteChanged();
+	}
+	partial void OnIsDispCopyFilesOnlyChanged( bool value )
+	{
+		App.Current.CurrentTargetSolution.CopyFileDataModel.IsDispCopyFilesOnly = value;
+		RefreshTargetFileInformationCollection();
+	}
+	partial void OnIsHideIgnoreFilesChanged( bool value )
+	{
+		App.Current.CurrentTargetSolution.CopyFileDataModel.IsHideIgnoreFiles = value;
+		RefreshTargetFileInformationCollection();
+	}
+	partial void OnSelectTargetIsmFileChanged( string? value )
+	{
+		EditIsmFileCommand.NotifyCanExecuteChanged();
+		DeleteIsmFileCommand.NotifyCanExecuteChanged();
 	}
 
 	public CopyFileViewModel( ILogger<CopyFileViewModel> logger, IDispAlert alart )
@@ -263,30 +260,18 @@ public partial class CopyFileViewModel : ImplementProgressBarBaseViewModel
 		m_logger = logger;
 		m_alert = alart;
 		m_tokenSrc = new();
+		TargetFolderInformationCollection.Clear();
+		foreach( var info in App.Current.CurrentTargetSolution.CopyFileDataModel.TargetInformations )
+		{
+			TargetFolderInformationCollection.Add( info );
+		}
+		foreach( var ismFile in App.Current.CurrentTargetSolution.TargetIsmFiles )
+		{
+			TargetIsmFiles.Add( ismFile );
+		}
+		IsDispCopyFilesOnly = App.Current.CurrentTargetSolution.CopyFileDataModel.IsDispCopyFilesOnly;
+		IsHideIgnoreFiles = App.Current.CurrentTargetSolution.CopyFileDataModel.IsHideIgnoreFiles;
 
-		App.Current.LoadCollection( TargetFolderInformationCollection, nameof( TargetFolderInformationCollection ) );
-		App.Current.LoadTargetIsmFiles( TargetIsmFiles );
-		// クラスを複数に分けたので名前の競合を避けるため、プレフィックスをつける
-		if( App.Current.Properties.Contains( nameof( IsDispCopyFilesOnly ) ) )
-		{
-			IsDispCopyFilesOnly = App.Current.GetBoolean( nameof( IsDispCopyFilesOnly ), true );
-			App.Current.Properties.Remove( nameof( IsDispCopyFilesOnly ) );
-			App.Current.Properties[nameof( CopyFileViewModel )+"."+nameof( IsDispCopyFilesOnly )] = IsDispCopyFilesOnly;
-		}
-		else
-		{
-			IsDispCopyFilesOnly = App.Current.GetBoolean( nameof( CopyFileViewModel ) + "." + nameof( IsDispCopyFilesOnly ), true );
-		}
-		if( App.Current.Properties.Contains( nameof( IsHideIgnoreFiles ) ) )
-		{
-			IsHideIgnoreFiles = App.Current.GetBoolean( nameof( IsHideIgnoreFiles ), true );
-			App.Current.Properties.Remove( nameof( IsHideIgnoreFiles ) );
-			App.Current.Properties[nameof( CopyFileViewModel ) + "." + nameof( IsHideIgnoreFiles )] = IsHideIgnoreFiles;
-		}
-		else
-		{
-			IsHideIgnoreFiles = App.Current.GetBoolean( nameof( CopyFileViewModel ) + "." + nameof( IsHideIgnoreFiles ), true );
-		}
 		RefreshTargetFileInformationCollection();
 	}
 

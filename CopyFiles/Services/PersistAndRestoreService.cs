@@ -24,13 +24,17 @@ public class PersistAndRestoreService : IPersistAndRestoreService
 	public async Task RestoreDataAsync( CancellationToken token = default )
 	{
 		m_logger.LogInformation( System.Reflection.MethodBase.GetCurrentMethod()?.Name );
-		var props = await m_fileService.ReadAsync<IDictionary>( GetPersistFilePath(), token );
-		if( props != null )
+		try
 		{
-			foreach( DictionaryEntry entry in props )
+			var props = await m_fileService.ReadAsync<Properties>( GetPersistFilePath(), token );
+			if( props != null )
 			{
-				App.Current.Properties.Add( entry.Key, entry.Value );
+				App.Current.Properties = props;
 			}
+		}
+		catch
+		{
+			// 設定ファイルが読めなかったら無視する
 		}
 		await Task.CompletedTask;
 	}

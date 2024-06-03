@@ -51,7 +51,7 @@ public partial class NonSignedFileCopyViewModel : ImplementProgressBarBaseViewMo
 			{
 				// 空データを突っ込んでいるかもしれないので削除する
 				TargetIsmFiles.Add( dlg.FileName );
-				App.Current.Properties[nameof( TargetIsmFiles )] = TargetIsmFiles;
+				App.Current.CurrentTargetSolution.TargetIsmFiles = TargetIsmFiles.ToArray();
 			}
 			else
 			{
@@ -78,7 +78,7 @@ public partial class NonSignedFileCopyViewModel : ImplementProgressBarBaseViewMo
 					TargetIsmFiles.Remove( SelectTargetIsmFile );
 					TargetIsmFiles.Add( dlg.FileName );
 					SelectTargetIsmFile = dlg.FileName;
-					App.Current.Properties[nameof( TargetIsmFiles )] = TargetIsmFiles;
+					App.Current.CurrentTargetSolution.TargetIsmFiles = TargetIsmFiles.ToArray();
 				}
 				else
 				{
@@ -98,7 +98,7 @@ public partial class NonSignedFileCopyViewModel : ImplementProgressBarBaseViewMo
 				return;
 			}
 			TargetIsmFiles.Remove( SelectTargetIsmFile );
-			App.Current.Properties[nameof( TargetIsmFiles )] = TargetIsmFiles;
+			App.Current.CurrentTargetSolution.TargetIsmFiles = TargetIsmFiles.ToArray();
 		}
 	}
 
@@ -115,7 +115,7 @@ public partial class NonSignedFileCopyViewModel : ImplementProgressBarBaseViewMo
 			if( dlg.ShowWindow() != false )
 			{
 				UnsignedFolderCollection.Add( dlg.ViewModel.TargetFolderInformation );
-				App.Current.Properties[nameof( UnsignedFolderCollection )] = UnsignedFolderCollection.ToArray();
+				App.Current.CurrentTargetSolution.NonSignedFileCopyDataModel.TargetInformations = UnsignedFolderCollection.ToArray();
 
 				CheckTargetFilesCommand.NotifyCanExecuteChanged();
 			}
@@ -138,7 +138,7 @@ public partial class NonSignedFileCopyViewModel : ImplementProgressBarBaseViewMo
 				SelectUnsignedFolder.Source = dlg.ViewModel.Source;
 				SelectUnsignedFolder.Destination = dlg.ViewModel.Destination;
 				// 実際は、コレクションデータも変わるのでそのまま書き込んでおけばよい
-				App.Current.Properties[nameof( UnsignedFolderCollection )] = UnsignedFolderCollection.ToArray();
+				App.Current.CurrentTargetSolution.NonSignedFileCopyDataModel.TargetInformations = UnsignedFolderCollection.ToArray();
 
 				CheckTargetFilesCommand.NotifyCanExecuteChanged();
 			}
@@ -155,7 +155,7 @@ public partial class NonSignedFileCopyViewModel : ImplementProgressBarBaseViewMo
 				return;
 			}
 			UnsignedFolderCollection.Remove( SelectUnsignedFolder );
-			App.Current.Properties[nameof( UnsignedFolderCollection )] = UnsignedFolderCollection.ToArray();
+			App.Current.CurrentTargetSolution.NonSignedFileCopyDataModel.TargetInformations = UnsignedFolderCollection.ToArray();
 
 			CheckTargetFilesCommand.NotifyCanExecuteChanged();
 		}
@@ -219,24 +219,20 @@ public partial class NonSignedFileCopyViewModel : ImplementProgressBarBaseViewMo
 		}
 	}
 
-	protected override void OnPropertyChanged( PropertyChangedEventArgs e )
+	partial void OnSelectUnsignedFolderChanged( TargetInformation? value )
 	{
-		switch( e.PropertyName )
-		{
-		case nameof( SelectUnsignedFolder ):
-			EditUnsignedFolderCommand.NotifyCanExecuteChanged();
-			RemoveUnsignedFolderCommand.NotifyCanExecuteChanged();
-			break;
-		case nameof( IsDispCopyFilesOnly ):
-			App.Current.Properties[nameof( NonSignedFileCopyViewModel ) + "." + nameof( IsDispCopyFilesOnly )] = IsDispCopyFilesOnly;
-			RefreshTargetFileInformationCollection();
-			break;
-		case nameof( IsHideIgnoreFiles ):
-			App.Current.Properties[nameof( NonSignedFileCopyViewModel ) + "." + nameof( IsHideIgnoreFiles )] = IsHideIgnoreFiles;
-			RefreshTargetFileInformationCollection();
-			break;
-		}
-		base.OnPropertyChanged( e );
+		EditUnsignedFolderCommand.NotifyCanExecuteChanged();
+		RemoveUnsignedFolderCommand.NotifyCanExecuteChanged();
+	}
+	partial void OnIsDispCopyFilesOnlyChanged( bool value )
+	{
+		App.Current.CurrentTargetSolution.NonSignedFileCopyDataModel.IsDispCopyFilesOnly = value;
+		RefreshTargetFileInformationCollection();
+	}
+	partial void OnIsHideIgnoreFilesChanged( bool value )
+	{
+		App.Current.CurrentTargetSolution.NonSignedFileCopyDataModel.IsHideIgnoreFiles = value;
+		RefreshTargetFileInformationCollection();
 	}
 	private void RefreshTargetFileInformationCollection()
 	{
@@ -267,11 +263,18 @@ public partial class NonSignedFileCopyViewModel : ImplementProgressBarBaseViewMo
 		m_tokenSrc = new();
 		m_logger = logger;
 		m_alert = alert;
-		App.Current.LoadCollection( UnsignedFolderCollection, nameof( UnsignedFolderCollection ) );
-		App.Current.LoadTargetIsmFiles( TargetIsmFiles );
+		UnsignedFolderCollection.Clear();
+		foreach( var info in App.Current.CurrentTargetSolution.NonSignedFileCopyDataModel.TargetInformations )
+		{
+			UnsignedFolderCollection.Add( info );
+		}
+		foreach( var ismFile in App.Current.CurrentTargetSolution.TargetIsmFiles )
+		{
+			TargetIsmFiles.Add( ismFile );
+		}
 
-		IsDispCopyFilesOnly = App.Current.GetBoolean( nameof( NonSignedFileCopyViewModel ) + "." + nameof( IsDispCopyFilesOnly ), true );
-		IsHideIgnoreFiles = App.Current.GetBoolean( nameof( NonSignedFileCopyViewModel ) + "." + nameof( IsHideIgnoreFiles ), true );
+		IsDispCopyFilesOnly = App.Current.CurrentTargetSolution.NonSignedFileCopyDataModel.IsDispCopyFilesOnly;
+		IsHideIgnoreFiles = App.Current.CurrentTargetSolution.NonSignedFileCopyDataModel.IsHideIgnoreFiles;
 
 		RefreshTargetFileInformationCollection();
 	}

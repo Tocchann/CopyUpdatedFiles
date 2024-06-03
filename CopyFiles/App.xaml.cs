@@ -32,59 +32,8 @@ namespace CopyFiles
 
 		public T? GetService<T>() where T : class => m_host?.Services.GetService( typeof(T) ) as T;
 
-		public void LoadCollection( ObservableCollection<TargetInformation> collection, string propertyName )
-		{
-			collection.Clear();
-			if( Properties.Contains( propertyName ) )
-			{
-				// 読み取った時は、JsonElementになっているので変換してやる必要がある(本当は型を見て処理するほうがいいけどここでは省略)
-				var jsonElement = (JsonElement?)Properties[propertyName];
-				if( jsonElement != null )
-				{
-					var folderInfos = JsonSerializer.Deserialize<TargetInformation[]>( jsonElement.Value );
-					if( folderInfos != null )
-					{
-						foreach( var info in folderInfos )
-						{
-							collection.Add( info );
-						}
-					}
-				}
-			}
-		}
-		public bool GetBoolean( string propertyName, bool defaultValue = default(bool) )
-		{
-			var obj = Properties[propertyName];
-			if( obj is JsonElement jsonElement )
-			{
-				return jsonElement.GetBoolean();
-			}
-			else if( obj is bool val )
-			{
-				return val;
-			}
-			return defaultValue;
-		}
-		public void LoadTargetIsmFiles( ObservableCollection<string> collection )
-		{
-			collection.Clear();
-			if( App.Current.Properties.Contains( "TargetIsmFiles" ) )
-			{
-				var jsonElement = (JsonElement?)App.Current.Properties["TargetIsmFiles"];
-				if( jsonElement != null )
-				{
-					var ismFiles = JsonSerializer.Deserialize<string[]>( jsonElement.Value );
-					if( ismFiles != null )
-					{
-						foreach( var file in ismFiles )
-						{
-							collection.Add( file );
-						}
-					}
-				}
-			}
-		}
-
+		public new Properties Properties { get; set; } = new();
+		public TargetSolutionCopyInformation CurrentTargetSolution => Properties.TargetSolutions[Properties.TargetSolution];
 
 		private async void OnStartupAsync( object sender, StartupEventArgs e )
 		{
@@ -118,8 +67,14 @@ namespace CopyFiles
 
 			collection.AddHostedService<ApplicationHostService>();
 
+			collection.AddTransient<IFileService, FileService>();
+			collection.AddTransient<IPersistAndRestoreService, PersistAndRestoreService>();
+
 			collection.AddTransient<SelectActionViewModel>();
 			collection.AddTransient<ISelectActionView, SelectActionView>();
+
+			collection.AddTransient<AddSolutionViewModel>();
+			collection.AddTransient<IAddSolutionDialog,AddSolutionDialog>();
 
 			collection.AddTransient<CopyFileViewModel>();
 			collection.AddTransient<ICopyFileView, CopyFileView>();
@@ -129,10 +84,6 @@ namespace CopyFiles
 
 			collection.AddTransient<AppendFolderViewModel>();
 			collection.AddTransient<IAppendFolderDialog, AppendFolderDialog>();
-
-			collection.AddTransient<IFileService, FileService>();
-			collection.AddTransient<IPersistAndRestoreService, PersistAndRestoreService>();
-
 		}
 		private async void OnExitAsync( object sender, ExitEventArgs e )
 		{
